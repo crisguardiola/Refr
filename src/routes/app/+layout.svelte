@@ -15,6 +15,8 @@
 		fileName: string;
 		note?: string | null;
 		createdAt: Date;
+		folder?: { id: number; name: string } | null;
+		tags?: { id: number; dimension: string; label: string; sortOrder: number }[];
 	};
 
 	let selectedScreenshot = $state<Screenshot | null>(null);

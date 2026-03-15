@@ -30,13 +30,16 @@
 	} = $props();
 
 	const selectedCtx = getContext<{
-		setSelected: (s: { id: number } | null) => void;
+		setSelected: (s: { id: number; url: string; fileName: string; note?: string | null; createdAt: Date | string; folder?: { id: number; name: string } | null; tags?: Tag[] } | null) => void;
 	}>('selectedScreenshot');
 
 	let folderId = $state<string>('');
 	let addTagOpen = $state(false);
 	let isSaving = $state(false);
+	let isSavingDetails = $state(false);
 	let addTagRef: HTMLDivElement;
+	let localFileName = $state('');
+	let localNote = $state('');
 
 	$effect(() => {
 		if (!addTagOpen) return;
@@ -55,6 +58,8 @@
 	$effect(() => {
 		if (selectedScreenshot) {
 			folderId = selectedScreenshot.folder?.id != null ? String(selectedScreenshot.folder.id) : '';
+			localFileName = selectedScreenshot.fileName ?? '';
+			localNote = selectedScreenshot.note ?? '';
 		}
 	});
 
@@ -86,11 +91,24 @@
 		formData.append('folderId', payload.folderId);
 		formData.append('tags', payload.tagIds.join(','));
 		try {
-			const res = await fetch('/app?/updateScreenshot', { method: 'POST', body: formData });
-			const text = await res.text();
-			if (res.ok) {
+			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
+			const data = await res.json();
+			if (data?.success) {
+				const folderObj = payload.folderId
+					? folders.find((f) => String(f.id) === payload.folderId)
+					: null;
+				const tagObjs = payload.tagIds
+					.map((tid) => tags.find((t) => t.id === tid))
+					.filter((t): t is Tag => t != null);
+				selectedCtx?.setSelected({
+					...selectedScreenshot,
+					folder: folderObj ? { id: folderObj.id, name: folderObj.name } : null,
+					tags: tagObjs
+				});
 				await invalidateAll();
 			}
+		} catch (err) {
+			console.error('Update screenshot failed:', err);
 		} finally {
 			isSaving = false;
 		}
@@ -111,6 +129,50 @@
 		addTagOpen = false;
 		const next = [...selectedTagIds, tagId];
 		updateScreenshot({ folderId, tagIds: next });
+	}
+
+	async function updateDetails(payload: { note?: string; fileName?: string }) {
+		if (!selectedScreenshot || isSavingDetails) return;
+		isSavingDetails = true;
+		const formData = new FormData();
+		formData.append('id', String(selectedScreenshot.id));
+		formData.append('folderId', folderId);
+		formData.append('tags', [...selectedTagIds].join(','));
+		if (payload.note !== undefined) formData.append('note', payload.note);
+		if (payload.fileName !== undefined) formData.append('fileName', payload.fileName);
+		try {
+			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
+			const data = await res.json();
+			if (data?.success) {
+				selectedCtx?.setSelected({
+					...selectedScreenshot,
+					note: payload.note ?? selectedScreenshot.note,
+					fileName: payload.fileName ?? selectedScreenshot.fileName
+				});
+				await invalidateAll();
+			}
+		} catch (err) {
+			console.error('Update details failed:', err);
+		} finally {
+			isSavingDetails = false;
+		}
+	}
+
+	function handleFileNameBlur() {
+		const trimmed = localFileName.trim();
+		if (trimmed && trimmed !== selectedScreenshot?.fileName) {
+			updateDetails({ fileName: trimmed });
+		} else if (!trimmed) {
+			localFileName = selectedScreenshot?.fileName ?? '';
+		}
+	}
+
+	function handleNoteBlur() {
+		const trimmed = localNote.trim();
+		const current = selectedScreenshot?.note ?? '';
+		if (trimmed !== current) {
+			updateDetails({ note: trimmed || '' });
+		}
 	}
 </script>
 
@@ -134,18 +196,34 @@
 			<dl class="space-y-3 text-sm">
 				<div>
 					<dt class="text-muted-foreground">File name</dt>
-					<dd class="mt-0.5 font-medium">{selectedScreenshot.fileName}</dd>
+					<dd class="mt-0.5">
+						<input
+							type="text"
+							bind:value={localFileName}
+							onblur={handleFileNameBlur}
+							disabled={isSavingDetails}
+							class="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+							placeholder="File name"
+						/>
+					</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">Added</dt>
 					<dd class="mt-0.5 font-medium">{formattedDate}</dd>
 				</div>
-				{#if selectedScreenshot.note}
-					<div>
-						<dt class="text-muted-foreground">Note</dt>
-						<dd class="mt-0.5 font-medium">{selectedScreenshot.note}</dd>
-					</div>
-				{/if}
+				<div>
+					<dt class="text-muted-foreground">Note</dt>
+					<dd class="mt-0.5">
+						<textarea
+							bind:value={localNote}
+							onblur={handleNoteBlur}
+							disabled={isSavingDetails}
+							rows={3}
+							class="w-full resize-none rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+							placeholder="Add a note..."
+						/>
+					</dd>
+				</div>
 				<div>
 					<dt class="text-muted-foreground">Folder</dt>
 					<dd class="mt-0.5">
