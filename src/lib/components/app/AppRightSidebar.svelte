@@ -1,35 +1,58 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { ImageIcon } from '@lucide/svelte';
 
-	let { detailOpen = $bindable(false) }: { detailOpen?: boolean } = $props();
+	let {
+		selectedScreenshot = null
+	}: {
+		selectedScreenshot?: { id: number; url: string; fileName: string; createdAt: Date | string } | null;
+	} = $props();
+
+	const formattedDate = $derived(
+		selectedScreenshot?.createdAt
+			? new Date(selectedScreenshot.createdAt).toLocaleDateString(undefined, {
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: ''
+	);
 </script>
 
-<!-- Desktop: always visible fixed column -->
 <aside
 	class={cn(
-		'hidden w-80 shrink-0 flex-col overflow-auto border-s border-border bg-background p-4',
-		'lg:flex'
+		'flex w-64 shrink-0 flex-col overflow-auto border-s border-border bg-background p-4',
+		'sm:w-72 lg:w-80'
 	)}
 	data-slot="app-right-sidebar"
 >
-	<div class="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
-		<ImageIcon class="size-12 text-muted-foreground" aria-hidden="true" />
-		<p class="text-muted-foreground text-sm">Select a screenshot to view details</p>
-	</div>
-</aside>
-
-<!-- Mobile/Tablet: Sheet overlay when screenshot selected (controlled by detailOpen) -->
-<Sheet.Root bind:open={detailOpen}>
-	<Sheet.Content side="right" class="w-full sm:max-w-md">
-		<Sheet.Header>
-			<Sheet.Title>Screenshot details</Sheet.Title>
-			<Sheet.Description>View and edit screenshot information</Sheet.Description>
-		</Sheet.Header>
-		<div class="flex flex-col items-center justify-center gap-4 py-12 text-center">
+	{#if selectedScreenshot}
+		<div class="flex flex-col gap-6">
+			<div class="space-y-2">
+				<h3 class="text-sm font-semibold">Details</h3>
+				<img
+					src={selectedScreenshot.url}
+					alt={selectedScreenshot.fileName}
+					class="w-full rounded-lg border border-border object-cover"
+				/>
+			</div>
+			<dl class="space-y-3 text-sm">
+				<div>
+					<dt class="text-muted-foreground">File name</dt>
+					<dd class="mt-0.5 font-medium">{selectedScreenshot.fileName}</dd>
+				</div>
+				<div>
+					<dt class="text-muted-foreground">Added</dt>
+					<dd class="mt-0.5 font-medium">{formattedDate}</dd>
+				</div>
+			</dl>
+		</div>
+	{:else}
+		<div class="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
 			<ImageIcon class="size-12 text-muted-foreground" aria-hidden="true" />
 			<p class="text-muted-foreground text-sm">Select a screenshot to view details</p>
 		</div>
-	</Sheet.Content>
-</Sheet.Root>
+	{/if}
+</aside>

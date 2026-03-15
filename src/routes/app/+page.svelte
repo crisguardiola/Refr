@@ -1,12 +1,19 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { ImageIcon, Upload } from '@lucide/svelte';
+	import { ImageIcon, Upload, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	type Screenshot = { id: number; url: string; fileName: string; createdAt: Date | string };
+	const selectedCtx = getContext<{
+		selected: Screenshot | null;
+		setSelected: (s: Screenshot | null) => void;
+	}>('selectedScreenshot');
 
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
 
@@ -82,10 +89,28 @@
 
 	const screenshots = data.screenshots ?? [];
 	const isEmpty = screenshots.length === 0;
+	const selected = $derived(selectedCtx?.selected ?? null);
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	{#if isEmpty}
+	{#if selected}
+		<div class="relative flex flex-1 flex-col items-center justify-center">
+			<Button
+				variant="ghost"
+				size="icon"
+				class="absolute right-0 top-0 z-10"
+				onclick={() => selectedCtx?.setSelected(null)}
+				aria-label="Close preview"
+			>
+				<X class="size-4" />
+			</Button>
+			<img
+				src={selected.url}
+				alt={selected.fileName}
+				class="max-h-[calc(100vh-12rem)] max-w-full rounded-lg object-contain shadow-lg"
+			/>
+		</div>
+	{:else if isEmpty}
 		<div
 			role="button"
 			tabindex="0"
@@ -131,30 +156,29 @@
 			</Button>
 		</div>
 	{:else}
-		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+		<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
 			{#each screenshots as shot (shot.id)}
-				<a
-					href={shot.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted shadow-sm transition-shadow hover:shadow-md"
+				<button
+					type="button"
+					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border border-border bg-muted text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					onclick={() => selectedCtx?.setSelected(shot)}
 				>
 					<img
 						src={shot.url}
 						alt={shot.fileName}
-						class="size-full object-cover transition-transform group-hover:scale-105"
+						class="w-full object-cover transition-transform group-hover:scale-105"
 					/>
 					<div
 						class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100"
 					>
 						<p class="truncate text-xs text-white">{shot.fileName}</p>
 					</div>
-				</a>
+				</button>
 			{/each}
 			<div
 				role="button"
 				tabindex="0"
-				class="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 transition-colors cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/50"
+				class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 transition-colors cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/50 break-inside-avoid mb-4"
 				ondragover={handleDragOver}
 				ondragleave={handleDragLeave}
 				ondrop={handleDrop}

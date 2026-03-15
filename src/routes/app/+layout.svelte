@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { setContext } from 'svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import AppTopBar from '$lib/components/app/AppTopBar.svelte';
 	import AppLeftSidebar from '$lib/components/app/AppLeftSidebar.svelte';
@@ -8,7 +9,21 @@
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
-	let detailOpen = $state(false);
+	let selectedScreenshot = $state<{
+		id: number;
+		url: string;
+		fileName: string;
+		createdAt: Date;
+	} | null>(null);
+
+	setContext('selectedScreenshot', {
+		get selected() {
+			return selectedScreenshot;
+		},
+		setSelected(s) {
+			selectedScreenshot = s;
+		}
+	});
 </script>
 
 <Sidebar.Provider>
@@ -22,7 +37,7 @@
 						<AppCenterArea>
 							{@render children?.()}
 						</AppCenterArea>
-						<AppRightSidebar bind:detailOpen />
+						<AppRightSidebar selectedScreenshot={selectedScreenshot} />
 					</div>
 				</div>
 			</Sidebar.Inset>
