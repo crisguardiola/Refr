@@ -50,6 +50,13 @@
       "when": 1773608100000,
       "tag": "0006_seed_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773608200000,
+      "tag": "0007_ui_elements_remove_pattern",
+      "breakpoints": true
     }
   ]
 }
