@@ -57,6 +57,13 @@
       "when": 1773608200000,
       "tag": "0007_ui_elements_remove_pattern",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773613813671,
+      "tag": "0008_white_kree",
+      "breakpoints": true
     }
   ]
 }

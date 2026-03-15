@@ -14,6 +14,7 @@
 		url: string;
 		fileName: string;
 		note?: string | null;
+		rating?: number | null;
 		createdAt: Date;
 		folder?: { id: number; name: string } | null;
 		tags?: { id: number; dimension: string; label: string; sortOrder: number }[];

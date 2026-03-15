@@ -98,6 +98,7 @@ export const actions: Actions = {
 		const folderIdRaw = formData.get('folderId');
 		const newFolderNameRaw = formData.get('newFolderName');
 		const tagsRaw = formData.get('tags');
+		const ratingRaw = formData.get('rating');
 
 		let folderId: number | null = null;
 		if (typeof folderIdRaw === 'string' && folderIdRaw.trim()) {
@@ -114,6 +115,14 @@ export const actions: Actions = {
 				.split(',')
 				.map((s) => parseInt(s.trim(), 10))
 				.filter((n) => !Number.isNaN(n));
+		}
+
+		let rating: number | null = null;
+		if (typeof ratingRaw === 'string' && ratingRaw.trim()) {
+			const parsed = parseInt(ratingRaw, 10);
+			if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 5) {
+				rating = parsed;
+			}
 		}
 
 		if (!file || file.size === 0) {
@@ -163,7 +172,8 @@ export const actions: Actions = {
 					folderId,
 					url: result.secure_url,
 					fileName: file.name,
-					note
+					note,
+					rating
 				})
 				.returning({ id: screenshot.id });
 

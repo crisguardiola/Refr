@@ -4,9 +4,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import { Star } from '@lucide/svelte';
 
 	type Folder = { id: number; name: string; count?: number };
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
+
+	const RATING_MAX = 5;
 
 	let {
 		open = false,
@@ -37,6 +40,7 @@
 	let createNewFolder = $state(false);
 	let newFolderName = $state('');
 	let selectedTagIds = $state<Set<number>>(new Set());
+	let rating = $state<number | null>(null);
 	let uploadResult = $state<{ success?: boolean; error?: string } | null>(null);
 	let isSubmitting = $state(false);
 
@@ -47,6 +51,7 @@
 			newFolderName = '';
 			noteText = '';
 			selectedTagIds = new Set();
+			rating = null;
 			uploadResult = null;
 		}
 	});
@@ -85,6 +90,9 @@
 		}
 		if (selectedTagIds.size > 0) {
 			formData.append('tags', [...selectedTagIds].join(','));
+		}
+		if (rating != null && rating >= 1 && rating <= RATING_MAX) {
+			formData.append('rating', String(rating));
 		}
 
 		fetch(uploadAction, { method: 'POST', body: formData })
@@ -166,6 +174,28 @@
 						placeholder="Why are you saving this? (optional)"
 						class="w-full"
 					/>
+				</div>
+
+				<div class="space-y-2">
+					<p class="text-sm font-medium">Rating (optional)</p>
+					<div class="flex gap-1" role="group" aria-label="Rate this screenshot">
+						{#each Array(RATING_MAX) as _, i}
+							{@const value = i + 1}
+							<button
+								type="button"
+								onclick={() => rating = rating === value ? null : value}
+								class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Rate {value} out of {RATING_MAX}"
+								aria-pressed={rating === value}
+							>
+								<Star
+									class="size-6 transition-colors {rating != null && value <= rating
+										? 'fill-amber-400 text-amber-500'
+										: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
+								/>
+							</button>
+						{/each}
+					</div>
 				</div>
 
 				<div class="space-y-3">

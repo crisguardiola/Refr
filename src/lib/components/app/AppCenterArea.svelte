@@ -14,9 +14,10 @@
 		tags?: Tag[];
 	} = $props();
 
-	const filterStore = writable<{ searchQuery: string; selectedTagIds: number[] }>({
+	const filterStore = writable<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>({
 		searchQuery: '',
-		selectedTagIds: []
+		selectedTagIds: [],
+		selectedRating: null
 	});
 	setContext('screenshotFilters', filterStore);
 </script>

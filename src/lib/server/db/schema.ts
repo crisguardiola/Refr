@@ -29,6 +29,7 @@ export const screenshot = pgTable('screenshot', {
 	url: text('url').notNull(),
 	fileName: text('file_name').notNull(),
 	note: text('note'),
+	rating: integer('rating'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	deletedAt: timestamp('deleted_at')
 });

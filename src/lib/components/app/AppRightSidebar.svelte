@@ -6,10 +6,12 @@
 	import { cn } from '$lib/utils.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ImageIcon, Trash2, Plus, X } from '@lucide/svelte';
+	import { ImageIcon, Trash2, Plus, X, Star } from '@lucide/svelte';
 
 	type Folder = { id: number; name: string; count?: number };
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
+
+	const RATING_MAX = 5;
 
 	let {
 		selectedScreenshot = null,
@@ -21,6 +23,7 @@
 			url: string;
 			fileName: string;
 			note?: string | null;
+			rating?: number | null;
 			createdAt: Date | string;
 			folder?: { id: number; name: string } | null;
 			tags?: Tag[];
@@ -30,7 +33,7 @@
 	} = $props();
 
 	const selectedCtx = getContext<{
-		setSelected: (s: { id: number; url: string; fileName: string; note?: string | null; createdAt: Date | string; folder?: { id: number; name: string } | null; tags?: Tag[] } | null) => void;
+		setSelected: (s: { id: number; url: string; fileName: string; note?: string | null; rating?: number | null; createdAt: Date | string; folder?: { id: number; name: string } | null; tags?: Tag[] } | null) => void;
 	}>('selectedScreenshot');
 
 	let folderId = $state<string>('');
@@ -83,13 +86,14 @@
 
 	const isTrashPage = $derived($page?.url?.pathname === '/app/trash');
 
-	async function updateScreenshot(payload: { folderId: string; tagIds: number[] }) {
+	async function updateScreenshot(payload: { folderId: string; tagIds: number[]; rating?: number | null }) {
 		if (!selectedScreenshot || isSaving) return;
 		isSaving = true;
 		const formData = new FormData();
 		formData.append('id', String(selectedScreenshot.id));
 		formData.append('folderId', payload.folderId);
 		formData.append('tags', payload.tagIds.join(','));
+		if (payload.rating !== undefined) formData.append('rating', payload.rating === null ? '' : String(payload.rating));
 		try {
 			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
 			const data = await res.json();
@@ -103,7 +107,8 @@
 				selectedCtx?.setSelected({
 					...selectedScreenshot,
 					folder: folderObj ? { id: folderObj.id, name: folderObj.name } : null,
-					tags: tagObjs
+					tags: tagObjs,
+					rating: payload.rating !== undefined ? payload.rating : selectedScreenshot.rating
 				});
 				await invalidateAll();
 			}
@@ -118,6 +123,11 @@
 		const v = (e.target as HTMLSelectElement).value;
 		folderId = v;
 		updateScreenshot({ folderId: v, tagIds: [...selectedTagIds] });
+	}
+
+	function handleRatingChange(value: number | null) {
+		updateScreenshot({ folderId, tagIds: [...selectedTagIds], rating: value });
+		selectedCtx?.setSelected({ ...selectedScreenshot!, rating: value });
 	}
 
 	function removeTag(tagId: number) {
@@ -210,6 +220,33 @@
 				<div>
 					<dt class="text-muted-foreground">Added</dt>
 					<dd class="mt-0.5 font-medium">{formattedDate}</dd>
+				</div>
+				<div>
+					<dt class="text-muted-foreground">Rating</dt>
+					<dd class="mt-0.5">
+						<div class="flex gap-1" role="group" aria-label="Rate this screenshot">
+							{#each Array(RATING_MAX) as _, i}
+								{@const value = i + 1}
+								<button
+									type="button"
+									onclick={() => handleRatingChange(selectedScreenshot.rating === value ? null : value)}
+									disabled={isSaving}
+									class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+									aria-label="Rate {value} out of {RATING_MAX}"
+									aria-pressed={selectedScreenshot.rating === value}
+								>
+									<Star
+										class="size-6 transition-colors {(selectedScreenshot.rating ?? 0) >= value
+											? 'fill-amber-400 text-amber-500'
+											: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
+									/>
+								</button>
+							{/each}
+						</div>
+						{#if selectedScreenshot.rating == null}
+							<p class="mt-1 text-xs text-muted-foreground">Click to rate</p>
+						{/if}
+					</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">Note</dt>

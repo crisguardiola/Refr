@@ -58,9 +58,24 @@ export const POST: RequestHandler = async (event) => {
 	const fileNameProvided = formData.has('fileName');
 	const fileName = fileNameProvided && typeof fileNameRaw === 'string' && fileNameRaw.trim() ? fileNameRaw.trim() : undefined;
 
+	const ratingRaw = formData.get('rating');
+	const ratingProvided = formData.has('rating');
+	let rating: number | null | undefined = undefined;
+	if (ratingProvided && typeof ratingRaw === 'string') {
+		if (ratingRaw.trim() === '') {
+			rating = null;
+		} else {
+			const parsed = parseInt(ratingRaw, 10);
+			if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 5) {
+				rating = parsed;
+			}
+		}
+	}
+
 	const updateData: Record<string, unknown> = { folderId };
 	if (note !== undefined) updateData.note = note;
 	if (fileName !== undefined) updateData.fileName = fileName;
+	if (rating !== undefined) updateData.rating = rating;
 
 	await db.update(screenshot).set(updateData).where(eq(screenshot.id, id));
 
