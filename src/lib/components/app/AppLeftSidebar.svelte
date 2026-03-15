@@ -9,7 +9,13 @@
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { Folder, FolderOpen, FolderPlus, Trash2 } from '@lucide/svelte';
 
-	let { folders = [] }: { folders?: { id: number; name: string }[] } = $props();
+	let {
+		folders = [],
+		counts = { all: 0, uncategorised: 0, trash: 0 }
+	}: {
+		folders?: { id: number; name: string; count: number }[];
+		counts?: { all: number; uncategorised: number; trash: number };
+	} = $props();
 
 	const isAllSelected = $derived($page.url.pathname === '/app');
 	const isUncategorisedSelected = $derived($page.url.pathname === '/app/uncategorised');
@@ -40,6 +46,7 @@
 							<Folder class="size-4" />
 							<span>All</span>
 						</Sidebar.MenuButton>
+						<Sidebar.MenuBadge>{counts.all}</Sidebar.MenuBadge>
 					</Sidebar.MenuItem>
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton
@@ -50,6 +57,7 @@
 							<FolderOpen class="size-4" />
 							<span>Uncategorised</span>
 						</Sidebar.MenuButton>
+						<Sidebar.MenuBadge>{counts.uncategorised}</Sidebar.MenuBadge>
 					</Sidebar.MenuItem>
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton
@@ -60,6 +68,7 @@
 							<Trash2 class="size-4" />
 							<span>Trash</span>
 						</Sidebar.MenuButton>
+						<Sidebar.MenuBadge>{counts.trash}</Sidebar.MenuBadge>
 					</Sidebar.MenuItem>
 				</Sidebar.Menu>
 			</Sidebar.GroupContent>
@@ -83,6 +92,7 @@
 								<Folder class="size-4" />
 								<span>{f.name}</span>
 							</Sidebar.MenuButton>
+							<Sidebar.MenuBadge>{f.count ?? 0}</Sidebar.MenuBadge>
 						</Sidebar.MenuItem>
 					{/each}
 				</Sidebar.Menu>
