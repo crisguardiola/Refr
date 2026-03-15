@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js';
+	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { ImageIcon } from '@lucide/svelte';
 
 	let {
@@ -33,7 +34,7 @@
 			<div class="space-y-2">
 				<h3 class="text-sm font-semibold">Details</h3>
 				<img
-					src={selectedScreenshot.url}
+					src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
 					alt={selectedScreenshot.fileName}
 					class="w-full rounded-lg border border-border object-cover"
 				/>

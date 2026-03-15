@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { ImageIcon, Upload, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -105,7 +106,7 @@
 				<X class="size-4" />
 			</Button>
 			<img
-				src={selected.url}
+				src={cloudinaryUrl(selected.url, 'detail')}
 				alt={selected.fileName}
 				class="max-h-[calc(100vh-12rem)] max-w-full rounded-lg object-contain shadow-lg"
 			/>
@@ -164,7 +165,7 @@
 					onclick={() => selectedCtx?.setSelected(shot)}
 				>
 					<img
-						src={shot.url}
+						src={cloudinaryUrl(shot.url, 'thumbnail')}
 						alt={shot.fileName}
 						class="w-full object-cover transition-transform group-hover:scale-105"
 					/>
@@ -178,14 +179,19 @@
 			<div
 				role="button"
 				tabindex="0"
-				class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 transition-colors cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/50 break-inside-avoid mb-4"
+				class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors cursor-pointer break-inside-avoid mb-4 {isDragging
+					? 'border-primary bg-primary/5'
+					: 'border-muted-foreground/25 bg-muted/30 hover:border-muted-foreground/50 hover:bg-muted/50'}"
 				ondragover={handleDragOver}
 				ondragleave={handleDragLeave}
 				ondrop={handleDrop}
-				onkeydown={(e) => e.key === 'Enter' && fileInput?.click()}
+				onclick={() => fileInput?.click()}
+				onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fileInput?.click())}
 			>
 				<Upload class="size-6 text-muted-foreground" />
-				<span class="text-muted-foreground text-xs">Add more</span>
+				<span class="text-muted-foreground text-xs">
+					{isDragging ? 'Drop to add' : 'Add more — drop or click'}
+				</span>
 				<input
 					bind:this={fileInput}
 					type="file"

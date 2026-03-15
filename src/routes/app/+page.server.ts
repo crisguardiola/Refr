@@ -4,10 +4,34 @@ import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { screenshot } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { writeFile, mkdir } from 'node:fs/promises';
-import path from 'node:path';
+import { env } from '$env/dynamic/private';
+import { v2 as cloudinary } from 'cloudinary';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
+
+function getCloudinaryConfig(): { cloud_name: string; api_key: string; api_secret: string } | null {
+	// Option 1: Parse CLOUDINARY_URL (cloudinary://api_key:api_secret@cloud_name)
+	const url = env.CLOUDINARY_URL ?? process.env.CLOUDINARY_URL;
+	if (url) {
+		const match = url.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+		if (match) {
+			return {
+				cloud_name: match[3].trim(),
+				api_key: match[1].trim(),
+				api_secret: match[2].trim()
+			};
+		}
+	}
+	// Option 2: Separate env vars
+	if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
+		return {
+			cloud_name: env.CLOUDINARY_CLOUD_NAME,
+			api_key: env.CLOUDINARY_API_KEY,
+			api_secret: env.CLOUDINARY_API_SECRET
+		};
+	}
+	return null;
+}
 
 export const load: PageServerLoad = async (event) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -36,6 +60,13 @@ export const actions: Actions = {
 			return { success: false, error: 'You must be logged in to upload' };
 		}
 
+		const cloudinaryConfig = getCloudinaryConfig();
+		if (!cloudinaryConfig) {
+			return { success: false, error: 'Cloudinary not configured. Add CLOUDINARY_URL to .env' };
+		}
+
+		cloudinary.config(cloudinaryConfig);
+
 		const formData = await event.request.formData();
 		const file = formData.get('screenshot') as File | null;
 
@@ -48,26 +79,31 @@ export const actions: Actions = {
 		}
 
 		try {
-			const ext = path.extname(file.name) || '.png';
-			const uniqueName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${ext}`;
-			const uploadsDir = path.join(process.cwd(), 'static', 'uploads');
-			await mkdir(uploadsDir, { recursive: true });
-			const filePath = path.join(uploadsDir, uniqueName);
 			const buffer = Buffer.from(await file.arrayBuffer());
-			await writeFile(filePath, buffer);
 
-			const url = `/uploads/${uniqueName}`;
+			const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+				cloudinary.uploader
+					.upload_stream(
+						{
+							folder: 'refr/screenshots',
+							resource_type: 'image'
+						},
+						(error, result) => (error ? reject(error) : resolve(result!))
+					)
+					.end(buffer);
+			});
 
 			await db.insert(screenshot).values({
 				userId: session.user.id,
-				url,
+				url: result.secure_url,
 				fileName: file.name
 			});
 
 			return { success: true };
 		} catch (err) {
 			console.error('Upload error:', err);
-			return { success: false, error: 'Failed to save screenshot. Try again.' };
+			const message = err instanceof Error ? err.message : String(err);
+			return { success: false, error: `Upload failed: ${message}` };
 		}
 	}
 };
