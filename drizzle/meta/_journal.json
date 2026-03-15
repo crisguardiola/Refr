@@ -29,6 +29,13 @@
       "when": 1773605375726,
       "tag": "0003_flashy_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773606090276,
+      "tag": "0004_tranquil_mole_man",
+      "breakpoints": true
     }
   ]
 }

@@ -7,11 +7,13 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
-	import { Folder, FolderPlus } from '@lucide/svelte';
+	import { Folder, FolderOpen, FolderPlus, Trash2 } from '@lucide/svelte';
 
 	let { folders = [] }: { folders?: { id: number; name: string }[] } = $props();
 
 	const isAllSelected = $derived($page.url.pathname === '/app');
+	const isUncategorisedSelected = $derived($page.url.pathname === '/app/uncategorised');
+	const isTrashSelected = $derived($page.url.pathname === '/app/trash');
 	function isFolderSelected(id: number) {
 		return $page.url.pathname === `/app/folder/${id}`;
 	}
@@ -24,7 +26,9 @@
 	<Sidebar.Header />
 	<Sidebar.Content>
 		<Sidebar.Group>
-			<Sidebar.GroupLabel class="px-2 text-sm font-semibold">Folders</Sidebar.GroupLabel>
+			<Sidebar.GroupLabel class="px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+				Default
+			</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					<Sidebar.MenuItem>
@@ -37,6 +41,38 @@
 							<span>All</span>
 						</Sidebar.MenuButton>
 					</Sidebar.MenuItem>
+					<Sidebar.MenuItem>
+						<Sidebar.MenuButton
+							isActive={isUncategorisedSelected}
+							tooltipContent="Uncategorised"
+							onclick={() => goto('/app/uncategorised')}
+						>
+							<FolderOpen class="size-4" />
+							<span>Uncategorised</span>
+						</Sidebar.MenuButton>
+					</Sidebar.MenuItem>
+					<Sidebar.MenuItem>
+						<Sidebar.MenuButton
+							isActive={isTrashSelected}
+							tooltipContent="Trash"
+							onclick={() => goto('/app/trash')}
+						>
+							<Trash2 class="size-4" />
+							<span>Trash</span>
+						</Sidebar.MenuButton>
+					</Sidebar.MenuItem>
+				</Sidebar.Menu>
+			</Sidebar.GroupContent>
+		</Sidebar.Group>
+
+		<Sidebar.Separator />
+
+		<Sidebar.Group>
+			<Sidebar.GroupLabel class="px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+				Custom folders
+			</Sidebar.GroupLabel>
+			<Sidebar.GroupContent>
+				<Sidebar.Menu>
 					{#each folders as f (f.id)}
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton

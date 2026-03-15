@@ -26,7 +26,8 @@ export const screenshot = pgTable('screenshot', {
 	url: text('url').notNull(),
 	fileName: text('file_name').notNull(),
 	note: text('note'),
-	createdAt: timestamp('created_at').defaultNow().notNull()
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+	deletedAt: timestamp('deleted_at')
 });
 
 export const folderRelations = relations(folder, ({ one, many }) => ({

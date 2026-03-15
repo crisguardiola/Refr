@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { screenshot, folder } from '$lib/server/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, isNull } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -49,7 +49,13 @@ export const load: PageServerLoad = async (event) => {
 	const screenshots = await db
 		.select()
 		.from(screenshot)
-		.where(and(eq(screenshot.userId, session.user.id), eq(screenshot.folderId, folderId)))
+		.where(
+			and(
+				eq(screenshot.userId, session.user.id),
+				eq(screenshot.folderId, folderId),
+				isNull(screenshot.deletedAt)
+			)
+		)
 		.orderBy(desc(screenshot.createdAt));
 
 	return { folder: folderRow, screenshots };

@@ -1,7 +1,12 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { getContext } from 'svelte';
 	import { cn } from '$lib/utils.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
-	import { ImageIcon } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { ImageIcon, Trash2 } from '@lucide/svelte';
 
 	let {
 		selectedScreenshot = null
@@ -10,6 +15,10 @@
 			| { id: number; url: string; fileName: string; note?: string | null; createdAt: Date | string }
 			| null;
 	} = $props();
+
+	const selectedCtx = getContext<{
+		setSelected: (s: { id: number } | null) => void;
+	}>('selectedScreenshot');
 
 	const formattedDate = $derived(
 		selectedScreenshot?.createdAt
@@ -57,6 +66,63 @@
 					</div>
 				{/if}
 			</dl>
+			{#if $page.url.pathname === '/app/trash'}
+				<div class="flex flex-col gap-2">
+					<form
+						method="post"
+						action="/app/trash?/restore"
+						use:enhance={() => {
+							return async ({ result }) => {
+								if (result.type === 'success') {
+									selectedCtx?.setSelected(null);
+									await invalidateAll();
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="id" value={selectedScreenshot.id} />
+						<Button type="submit" variant="outline" size="sm" class="w-full">
+							Restore
+						</Button>
+					</form>
+					<form
+						method="post"
+						action="/app/trash?/permanentDelete"
+						use:enhance={() => {
+							return async ({ result }) => {
+								if (result.type === 'success') {
+									selectedCtx?.setSelected(null);
+									await invalidateAll();
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="id" value={selectedScreenshot.id} />
+						<Button type="submit" variant="outline" size="sm" class="w-full text-destructive hover:bg-destructive/10 hover:text-destructive">
+							Delete permanently
+						</Button>
+					</form>
+				</div>
+			{:else}
+				<form
+					method="post"
+					action="/app?/moveToTrash"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								selectedCtx?.setSelected(null);
+								await invalidateAll();
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={selectedScreenshot.id} />
+					<Button type="submit" variant="outline" size="sm" class="w-full text-destructive hover:bg-destructive/10 hover:text-destructive">
+						<Trash2 class="size-4" />
+						Move to trash
+					</Button>
+				</form>
+			{/if}
 		</div>
 	{:else}
 		<div class="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">

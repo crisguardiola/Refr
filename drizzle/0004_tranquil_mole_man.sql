@@ -1,0 +1,1 @@
+ALTER TABLE "screenshot" ADD COLUMN "deleted_at" timestamp;
