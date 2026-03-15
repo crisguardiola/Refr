@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { folder, screenshot } from '$lib/server/db/schema';
+import { folder, screenshot, tag } from '$lib/server/db/schema';
 import { eq, asc, and, isNull, isNotNull } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async (event) => {
@@ -10,8 +10,9 @@ export const load: LayoutServerLoad = async (event) => {
 	}
 	const userId = event.locals.user.id;
 
-	const [folders, countAll, countUncategorised, countTrash] = await Promise.all([
+	const [folders, tags, countAll, countUncategorised, countTrash] = await Promise.all([
 		db.select().from(folder).where(eq(folder.userId, userId)).orderBy(asc(folder.createdAt)),
+		db.select().from(tag).orderBy(asc(tag.dimension), asc(tag.sortOrder)),
 		db.$count(
 			screenshot,
 			and(eq(screenshot.userId, userId), isNull(screenshot.deletedAt))
@@ -47,6 +48,7 @@ export const load: LayoutServerLoad = async (event) => {
 	return {
 		user: event.locals.user,
 		folders: foldersWithCount,
+		tags,
 		counts: { all: countAll, uncategorised: countUncategorised, trash: countTrash }
 	};
 };

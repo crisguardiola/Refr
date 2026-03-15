@@ -2,7 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { screenshot, folder } from '$lib/server/db/schema';
+import { screenshot, folder, screenshotTag } from '$lib/server/db/schema';
+import { enrichScreenshotsWithFolderAndTags } from '$lib/server/screenshot';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { v2 as cloudinary } from 'cloudinary';
@@ -46,7 +47,7 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!folderRow) return redirect(302, '/app');
 
-	const screenshots = await db
+	const rows = await db
 		.select()
 		.from(screenshot)
 		.where(
@@ -58,6 +59,7 @@ export const load: PageServerLoad = async (event) => {
 		)
 		.orderBy(desc(screenshot.createdAt));
 
+	const screenshots = await enrichScreenshotsWithFolderAndTags(rows);
 	return { folder: folderRow, screenshots };
 };
 
@@ -68,15 +70,15 @@ export const actions: Actions = {
 			return { success: false, error: 'You must be logged in to upload' };
 		}
 
-		const folderId = parseInt(event.params.folderId, 10);
-		if (Number.isNaN(folderId)) {
+		const paramFolderId = parseInt(event.params.folderId, 10);
+		if (Number.isNaN(paramFolderId)) {
 			return { success: false, error: 'Invalid folder' };
 		}
 
 		const [folderRow] = await db
 			.select()
 			.from(folder)
-			.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+			.where(and(eq(folder.id, paramFolderId), eq(folder.userId, session.user.id)))
 			.limit(1);
 		if (!folderRow) {
 			return { success: false, error: 'Folder not found' };
@@ -93,6 +95,26 @@ export const actions: Actions = {
 		const file = formData.get('screenshot') as File | null;
 		const noteRaw = formData.get('note');
 		const note = typeof noteRaw === 'string' ? noteRaw.trim() || null : null;
+		const folderIdRaw = formData.get('folderId');
+		const newFolderNameRaw = formData.get('newFolderName');
+		const tagsRaw = formData.get('tags');
+
+		let folderId: number | null = null;
+		if (typeof folderIdRaw === 'string' && folderIdRaw.trim()) {
+			const parsed = parseInt(folderIdRaw, 10);
+			if (!Number.isNaN(parsed)) folderId = parsed;
+		}
+
+		const newFolderName =
+			typeof newFolderNameRaw === 'string' ? newFolderNameRaw.trim() || null : null;
+
+		let tagIds: number[] = [];
+		if (typeof tagsRaw === 'string' && tagsRaw.trim()) {
+			tagIds = tagsRaw
+				.split(',')
+				.map((s) => parseInt(s.trim(), 10))
+				.filter((n) => !Number.isNaN(n));
+		}
 
 		if (!file || file.size === 0) {
 			return { success: false, error: 'Please select an image to upload' };
@@ -103,6 +125,23 @@ export const actions: Actions = {
 		}
 
 		try {
+			if (newFolderName) {
+				const [created] = await db
+					.insert(folder)
+					.values({ userId: session.user.id, name: newFolderName })
+					.returning({ id: folder.id });
+				if (created) folderId = created.id;
+			} else if (folderId !== null) {
+				const [folderCheck] = await db
+					.select()
+					.from(folder)
+					.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+					.limit(1);
+				if (!folderCheck) {
+					return { success: false, error: 'Folder not found' };
+				}
+			}
+
 			const buffer = Buffer.from(await file.arrayBuffer());
 
 			const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
@@ -117,13 +156,25 @@ export const actions: Actions = {
 					.end(buffer);
 			});
 
-			await db.insert(screenshot).values({
-				userId: session.user.id,
-				folderId,
-				url: result.secure_url,
-				fileName: file.name,
-				note
-			});
+			const [inserted] = await db
+				.insert(screenshot)
+				.values({
+					userId: session.user.id,
+					folderId,
+					url: result.secure_url,
+					fileName: file.name,
+					note
+				})
+				.returning({ id: screenshot.id });
+
+			if (inserted && tagIds.length > 0) {
+				await db.insert(screenshotTag).values(
+					tagIds.map((tagId) => ({
+						screenshotId: inserted.id,
+						tagId
+					}))
+				);
+			}
 
 			return { success: true };
 		} catch (err) {

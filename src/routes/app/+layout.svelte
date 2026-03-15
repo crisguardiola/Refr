@@ -43,7 +43,11 @@
 						<AppCenterArea>
 							{@render children?.()}
 						</AppCenterArea>
-						<AppRightSidebar selectedScreenshot={selectedScreenshot} />
+						<AppRightSidebar
+							selectedScreenshot={selectedScreenshot}
+							folders={data.folders ?? []}
+							tags={data.tags ?? []}
+						/>
 					</div>
 				</div>
 			</Sidebar.Inset>

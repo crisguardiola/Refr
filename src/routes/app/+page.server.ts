@@ -2,7 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { screenshot, folder } from '$lib/server/db/schema';
+import { screenshot, folder, screenshotTag } from '$lib/server/db/schema';
+import { enrichScreenshotsWithFolderAndTags } from '$lib/server/screenshot';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { v2 as cloudinary } from 'cloudinary';
@@ -37,12 +38,13 @@ export const load: PageServerLoad = async (event) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	if (!session?.user) return { screenshots: [] };
 
-	const screenshots = await db
+	const rows = await db
 		.select()
 		.from(screenshot)
 		.where(and(eq(screenshot.userId, session.user.id), isNull(screenshot.deletedAt)))
 		.orderBy(desc(screenshot.createdAt));
 
+	const screenshots = await enrichScreenshotsWithFolderAndTags(rows);
 	return { screenshots };
 };
 
@@ -85,6 +87,62 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	updateScreenshot: async (event) => {
+		const session = await auth.api.getSession({ headers: event.request.headers });
+		if (!session?.user) {
+			return { success: false, error: 'You must be logged in' };
+		}
+		const formData = await event.request.formData();
+		const idRaw = formData.get('id');
+		const id = typeof idRaw === 'string' ? parseInt(idRaw, 10) : NaN;
+		if (Number.isNaN(id)) {
+			return { success: false, error: 'Invalid screenshot' };
+		}
+
+		const [existing] = await db
+			.select()
+			.from(screenshot)
+			.where(and(eq(screenshot.id, id), eq(screenshot.userId, session.user.id)))
+			.limit(1);
+		if (!existing) {
+			return { success: false, error: 'Screenshot not found' };
+		}
+
+		const folderIdRaw = formData.get('folderId');
+		let folderId: number | null = null;
+		if (typeof folderIdRaw === 'string' && folderIdRaw.trim()) {
+			const parsed = parseInt(folderIdRaw, 10);
+			if (!Number.isNaN(parsed)) {
+				const [folderRow] = await db
+					.select()
+					.from(folder)
+					.where(and(eq(folder.id, parsed), eq(folder.userId, session.user.id)))
+					.limit(1);
+				if (folderRow) folderId = parsed;
+			}
+		}
+
+		const tagsRaw = formData.get('tags');
+		let tagIds: number[] = [];
+		if (typeof tagsRaw === 'string' && tagsRaw.trim()) {
+			tagIds = tagsRaw
+				.split(',')
+				.map((s) => parseInt(s.trim(), 10))
+				.filter((n) => !Number.isNaN(n));
+		}
+
+		await db.update(screenshot).set({ folderId }).where(eq(screenshot.id, id));
+
+		await db.delete(screenshotTag).where(eq(screenshotTag.screenshotId, id));
+		if (tagIds.length > 0) {
+			await db.insert(screenshotTag).values(
+				tagIds.map((tagId) => ({ screenshotId: id, tagId }))
+			);
+		}
+
+		return { success: true };
+	},
+
 	signOut: async (event) => {
 		await auth.api.signOut({
 			headers: event.request.headers
@@ -109,6 +167,26 @@ export const actions: Actions = {
 		const file = formData.get('screenshot') as File | null;
 		const noteRaw = formData.get('note');
 		const note = typeof noteRaw === 'string' ? noteRaw.trim() || null : null;
+		const folderIdRaw = formData.get('folderId');
+		const newFolderNameRaw = formData.get('newFolderName');
+		const tagsRaw = formData.get('tags');
+
+		let folderId: number | null = null;
+		if (typeof folderIdRaw === 'string' && folderIdRaw.trim()) {
+			const parsed = parseInt(folderIdRaw, 10);
+			if (!Number.isNaN(parsed)) folderId = parsed;
+		}
+
+		const newFolderName =
+			typeof newFolderNameRaw === 'string' ? newFolderNameRaw.trim() || null : null;
+
+		let tagIds: number[] = [];
+		if (typeof tagsRaw === 'string' && tagsRaw.trim()) {
+			tagIds = tagsRaw
+				.split(',')
+				.map((s) => parseInt(s.trim(), 10))
+				.filter((n) => !Number.isNaN(n));
+		}
 
 		if (!file || file.size === 0) {
 			return { success: false, error: 'Please select an image to upload' };
@@ -119,6 +197,23 @@ export const actions: Actions = {
 		}
 
 		try {
+			if (newFolderName) {
+				const [created] = await db
+					.insert(folder)
+					.values({ userId: session.user.id, name: newFolderName })
+					.returning({ id: folder.id });
+				if (created) folderId = created.id;
+			} else if (folderId) {
+				const [folderRow] = await db
+					.select()
+					.from(folder)
+					.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+					.limit(1);
+				if (!folderRow) {
+					return { success: false, error: 'Folder not found' };
+				}
+			}
+
 			const buffer = Buffer.from(await file.arrayBuffer());
 
 			const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
@@ -133,12 +228,25 @@ export const actions: Actions = {
 					.end(buffer);
 			});
 
-			await db.insert(screenshot).values({
-				userId: session.user.id,
-				url: result.secure_url,
-				fileName: file.name,
-				note
-			});
+			const [inserted] = await db
+				.insert(screenshot)
+				.values({
+					userId: session.user.id,
+					folderId,
+					url: result.secure_url,
+					fileName: file.name,
+					note
+				})
+				.returning({ id: screenshot.id });
+
+			if (inserted && tagIds.length > 0) {
+				await db.insert(screenshotTag).values(
+					tagIds.map((tagId) => ({
+						screenshotId: inserted.id,
+						tagId
+					}))
+				);
+			}
 
 			return { success: true };
 		} catch (err) {

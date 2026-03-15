@@ -2,23 +2,48 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { getContext } from 'svelte';
 	import { cn } from '$lib/utils.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ImageIcon, Trash2 } from '@lucide/svelte';
 
+	type Folder = { id: number; name: string; count?: number };
+	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
+
 	let {
-		selectedScreenshot = null
+		selectedScreenshot = null,
+		folders = [],
+		tags = []
 	}: {
-		selectedScreenshot?:
-			| { id: number; url: string; fileName: string; note?: string | null; createdAt: Date | string }
-			| null;
+		selectedScreenshot?: {
+			id: number;
+			url: string;
+			fileName: string;
+			note?: string | null;
+			createdAt: Date | string;
+			folder?: { id: number; name: string } | null;
+			tags?: Tag[];
+		} | null;
+		folders?: Folder[];
+		tags?: Tag[];
 	} = $props();
 
 	const selectedCtx = getContext<{
 		setSelected: (s: { id: number } | null) => void;
 	}>('selectedScreenshot');
+
+	let isEditing = $state(false);
+	let editFolderId = $state<string>('');
+	let editTagIds = $state<Set<number>>(new Set());
+
+	$effect(() => {
+		if (selectedScreenshot) {
+			editFolderId = selectedScreenshot.folder?.id != null ? String(selectedScreenshot.folder.id) : '';
+			editTagIds = new Set((selectedScreenshot.tags ?? []).map((t) => t.id));
+		}
+	});
 
 	const formattedDate = $derived(
 		selectedScreenshot?.createdAt
@@ -31,6 +56,25 @@
 				})
 			: ''
 	);
+
+	const tagsByDimension = $derived(
+		(() => {
+			const map: Record<string, Tag[]> = { ui_type: [], color: [], pattern: [] };
+			for (const t of tags) {
+				if (map[t.dimension]) map[t.dimension].push(t);
+			}
+			return map;
+		})()
+	);
+
+	function toggleEditTag(id: number) {
+		editTagIds = new Set(editTagIds);
+		if (editTagIds.has(id)) {
+			editTagIds.delete(id);
+		} else {
+			editTagIds.add(id);
+		}
+	}
 </script>
 
 <aside
@@ -65,8 +109,107 @@
 						<dd class="mt-0.5 font-medium">{selectedScreenshot.note}</dd>
 					</div>
 				{/if}
+				<div>
+					<dt class="text-muted-foreground">Folder</dt>
+					<dd class="mt-0.5 font-medium">
+						{#if isEditing}
+							<select
+								bind:value={editFolderId}
+								class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+							>
+								<option value="">Uncategorised</option>
+								{#each folders as f (f.id)}
+									<option value={String(f.id)}>{f.name}</option>
+								{/each}
+							</select>
+						{:else}
+							{#if selectedScreenshot.folder}
+								<a
+									href="/app/folder/{selectedScreenshot.folder.id}"
+									class="text-primary hover:underline"
+									onclick={(e) => {
+										e.preventDefault();
+										const fid = selectedScreenshot.folder?.id;
+										if (fid != null) goto(`/app/folder/${fid}`);
+									}}
+								>
+									{selectedScreenshot.folder.name}
+								</a>
+							{:else}
+								<span class="text-muted-foreground">Uncategorised</span>
+							{/if}
+						{/if}
+					</dd>
+				</div>
+				<div>
+					<dt class="text-muted-foreground">Tags</dt>
+					<dd class="mt-0.5">
+						{#if isEditing}
+							<div class="space-y-2">
+								{#each ['ui_type', 'color', 'pattern'] as dim}
+									{#if tagsByDimension[dim]?.length}
+										<div class="space-y-1">
+											<span class="text-xs text-muted-foreground capitalize">{dim.replace('_', ' ')}</span>
+											<div class="flex flex-wrap gap-1">
+												{#each tagsByDimension[dim] as t (t.id)}
+													<button
+														type="button"
+														class="rounded-full border px-2 py-0.5 text-xs transition-colors {editTagIds.has(t.id)
+															? 'border-primary bg-primary text-primary-foreground'
+															: 'border-border bg-muted hover:bg-muted/80'}"
+														onclick={() => toggleEditTag(t.id)}
+													>
+														{t.label}
+													</button>
+												{/each}
+											</div>
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{:else}
+							{#if selectedScreenshot.tags?.length}
+								<div class="flex flex-wrap gap-1">
+									{#each selectedScreenshot.tags as t (t.id)}
+										<span
+											class="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs"
+										>
+											{t.label}
+										</span>
+									{/each}
+								</div>
+							{:else}
+								<span class="text-muted-foreground">No tags</span>
+							{/if}
+						{/if}
+					</dd>
+				</div>
 			</dl>
-			{#if $page.url.pathname === '/app/trash'}
+			{#if isEditing}
+				<form
+					method="post"
+					action="/app?/updateScreenshot"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								isEditing = false;
+								await invalidateAll();
+							}
+						};
+					}}
+					class="flex flex-col gap-2"
+				>
+					<input type="hidden" name="id" value={selectedScreenshot.id} />
+					<input type="hidden" name="folderId" value={editFolderId} />
+					<input type="hidden" name="tags" value={[...editTagIds].join(',')} />
+					<Button type="submit" size="sm">Save changes</Button>
+					<Button type="button" variant="outline" size="sm" onclick={() => (isEditing = false)}>
+						Cancel
+					</Button>
+				</form>
+			{:else}
+				<Button variant="outline" size="sm" onclick={() => (isEditing = true)}>Edit</Button>
+				{#if $page.url.pathname === '/app/trash'}
 				<div class="flex flex-col gap-2">
 					<form
 						method="post"
@@ -122,6 +265,7 @@
 						Move to trash
 					</Button>
 				</form>
+				{/if}
 			{/if}
 		</div>
 	{:else}

@@ -3,18 +3,20 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { screenshot } from '$lib/server/db/schema';
+import { enrichScreenshotsWithFolderAndTags } from '$lib/server/screenshot';
 import { eq, desc, and, isNotNull } from 'drizzle-orm';
 
 export const load: PageServerLoad = async (event) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	if (!session?.user) return redirect(302, '/demo/better-auth/login');
 
-	const screenshots = await db
+	const rows = await db
 		.select()
 		.from(screenshot)
 		.where(and(eq(screenshot.userId, session.user.id), isNotNull(screenshot.deletedAt)))
 		.orderBy(desc(screenshot.deletedAt));
 
+	const screenshots = await enrichScreenshotsWithFolderAndTags(rows);
 	return { screenshots };
 };
 
