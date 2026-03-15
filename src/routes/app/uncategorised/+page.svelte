@@ -4,6 +4,7 @@
 	import { ImageIcon, Upload, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
+	import { filterScreenshots } from '$lib/filter-screenshots.js';
 	import UploadPreviewSheet from '$lib/components/app/UploadPreviewSheet.svelte';
 	import type { PageData } from './$types';
 
@@ -15,11 +16,13 @@
 		fileName: string;
 		note?: string | null;
 		createdAt: Date | string;
+		tags?: { id: number }[];
 	};
 	const selectedCtx = getContext<{
 		selected: Screenshot | null;
 		setSelected: (s: Screenshot | null) => void;
 	}>('selectedScreenshot');
+	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[] }) => void) => () => void }>('screenshotFilters');
 
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
 
@@ -86,7 +89,20 @@
 		}
 	}
 
-	const screenshots = $derived(data.screenshots ?? []);
+	const rawScreenshots = $derived(data.screenshots ?? []);
+	let filterState = $state<{ searchQuery: string; selectedTagIds: number[] }>({
+		searchQuery: '',
+		selectedTagIds: []
+	});
+	$effect(() => {
+		if (!filterStore) return;
+		return filterStore.subscribe((v) => {
+			filterState = v;
+		});
+	});
+	const screenshots = $derived(
+		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds)
+	);
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived<number | null>(null);

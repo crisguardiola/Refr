@@ -42,7 +42,7 @@
 			<Sidebar.Inset>
 				<div class="flex h-full flex-col overflow-hidden">
 					<div class="flex min-h-0 flex-1">
-						<AppCenterArea>
+						<AppCenterArea tags={data.tags ?? []}>
 							{@render children?.()}
 						</AppCenterArea>
 						<AppRightSidebar
