@@ -69,6 +69,8 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const file = formData.get('screenshot') as File | null;
+		const noteRaw = formData.get('note');
+		const note = typeof noteRaw === 'string' ? noteRaw.trim() || null : null;
 
 		if (!file || file.size === 0) {
 			return { success: false, error: 'Please select an image to upload' };
@@ -96,7 +98,8 @@ export const actions: Actions = {
 			await db.insert(screenshot).values({
 				userId: session.user.id,
 				url: result.secure_url,
-				fileName: file.name
+				fileName: file.name,
+				note
 			});
 
 			return { success: true };

@@ -14,6 +14,7 @@ export const screenshot = pgTable('screenshot', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	url: text('url').notNull(),
 	fileName: text('file_name').notNull(),
+	note: text('note'),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 

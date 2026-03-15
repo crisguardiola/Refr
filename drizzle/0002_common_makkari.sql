@@ -1,0 +1,1 @@
+ALTER TABLE "screenshot" ADD COLUMN "note" text;

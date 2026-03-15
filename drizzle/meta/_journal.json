@@ -15,6 +15,13 @@
       "when": 1773600329049,
       "tag": "0001_needy_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773604766543,
+      "tag": "0002_common_makkari",
+      "breakpoints": true
     }
   ]
 }

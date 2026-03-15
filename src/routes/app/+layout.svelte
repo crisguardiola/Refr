@@ -9,18 +9,21 @@
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
-	let selectedScreenshot = $state<{
+	type Screenshot = {
 		id: number;
 		url: string;
 		fileName: string;
+		note?: string | null;
 		createdAt: Date;
-	} | null>(null);
+	};
+
+	let selectedScreenshot = $state<Screenshot | null>(null);
 
 	setContext('selectedScreenshot', {
 		get selected() {
 			return selectedScreenshot;
 		},
-		setSelected(s) {
+		setSelected(s: Screenshot | null) {
 			selectedScreenshot = s;
 		}
 	});

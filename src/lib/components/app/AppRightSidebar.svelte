@@ -6,7 +6,9 @@
 	let {
 		selectedScreenshot = null
 	}: {
-		selectedScreenshot?: { id: number; url: string; fileName: string; createdAt: Date | string } | null;
+		selectedScreenshot?:
+			| { id: number; url: string; fileName: string; note?: string | null; createdAt: Date | string }
+			| null;
 	} = $props();
 
 	const formattedDate = $derived(
@@ -36,7 +38,7 @@
 				<img
 					src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
 					alt={selectedScreenshot.fileName}
-					class="w-full rounded-lg border border-border object-cover"
+					class="w-1/3 rounded-lg border border-border object-cover"
 				/>
 			</div>
 			<dl class="space-y-3 text-sm">
@@ -48,6 +50,12 @@
 					<dt class="text-muted-foreground">Added</dt>
 					<dd class="mt-0.5 font-medium">{formattedDate}</dd>
 				</div>
+				{#if selectedScreenshot.note}
+					<div>
+						<dt class="text-muted-foreground">Note</dt>
+						<dd class="mt-0.5 font-medium">{selectedScreenshot.note}</dd>
+					</div>
+				{/if}
 			</dl>
 		</div>
 	{:else}

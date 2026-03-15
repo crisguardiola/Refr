@@ -5,12 +5,20 @@
 	import { page } from '$app/stores';
 	import { ImageIcon, Upload, X } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	type Screenshot = { id: number; url: string; fileName: string; createdAt: Date | string };
+	type Screenshot = {
+		id: number;
+		url: string;
+		fileName: string;
+		note?: string | null;
+		createdAt: Date | string;
+	};
 	const selectedCtx = getContext<{
 		selected: Screenshot | null;
 		setSelected: (s: Screenshot | null) => void;
@@ -21,8 +29,30 @@
 	let isDragging = $state(false);
 	let fileInput: HTMLInputElement;
 	let uploadResult = $state<{ success?: boolean; error?: string } | null>(null);
+	let previewOpen = $state(false);
+	let pendingFile = $state<File | null>(null);
+	let previewUrl = $state<string | null>(null);
+	let noteText = $state('');
 
 	const ACCEPT = 'image/png,image/jpeg,image/jpg,image/webp,image/gif';
+
+	function openPreview(file: File) {
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		pendingFile = file;
+		previewUrl = URL.createObjectURL(file);
+		noteText = '';
+		previewOpen = true;
+	}
+
+	function closePreview() {
+		if (previewUrl) {
+			URL.revokeObjectURL(previewUrl);
+			previewUrl = null;
+		}
+		pendingFile = null;
+		noteText = '';
+		previewOpen = false;
+	}
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
@@ -50,7 +80,7 @@
 			['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'].includes(f.type)
 		);
 		if (imageFile) {
-			submitFile(imageFile);
+			openPreview(imageFile);
 		}
 	}
 
@@ -58,15 +88,16 @@
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (file) {
-			submitFile(file);
+			openPreview(file);
 			input.value = '';
 		}
 	}
 
-	function submitFile(file: File) {
+	function submitFile(file: File, note?: string) {
 		uploadResult = null;
 		const formData = new FormData();
 		formData.append('screenshot', file);
+		formData.append('note', note ?? '');
 
 		fetch(uploadAction, {
 			method: 'POST',
@@ -75,12 +106,15 @@
 			.then((res) => res.text())
 			.then((text) => {
 				const result = deserialize(text);
-				uploadResult = (result.data as { success?: boolean; error?: string }) ?? {
+				const data = result.type === 'success' && 'data' in result ? result.data : undefined;
+				uploadResult = (data as { success?: boolean; error?: string }) ?? {
 					success: false,
 					error: 'Upload failed'
 				};
 				if (result.type === 'success' && uploadResult?.success) {
+					closePreview();
 					invalidateAll();
+					setTimeout(() => (uploadResult = null), 3000);
 				}
 			})
 			.catch(() => {
@@ -88,8 +122,14 @@
 			});
 	}
 
-	const screenshots = data.screenshots ?? [];
-	const isEmpty = screenshots.length === 0;
+	function handleSave() {
+		if (pendingFile) {
+			submitFile(pendingFile, noteText.trim() || undefined);
+		}
+	}
+
+	const screenshots = $derived(data.screenshots ?? []);
+	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 </script>
 
@@ -214,4 +254,35 @@
 			{uploadResult.success ? 'Screenshot uploaded successfully!' : uploadResult.error}
 		</div>
 	{/if}
+
+	<Sheet.Root bind:open={previewOpen} onOpenChange={(open) => !open && closePreview()}>
+		<Sheet.Content side="bottom" class="max-h-[85vh] flex flex-col">
+			<Sheet.Header>
+				<Sheet.Title>Add screenshot</Sheet.Title>
+				<Sheet.Description>Add an optional note to record why you're saving this reference.</Sheet.Description>
+			</Sheet.Header>
+			{#if previewUrl && pendingFile}
+				<div class="flex flex-1 flex-col gap-4 overflow-auto px-4">
+					<img
+						src={previewUrl}
+						alt={pendingFile.name}
+						class="max-h-48 w-full rounded-lg border border-border object-contain bg-muted"
+					/>
+					<div class="space-y-2">
+						<label for="note-input" class="text-sm font-medium">Note (optional)</label>
+						<Input
+							id="note-input"
+							bind:value={noteText}
+							placeholder="Why are you saving this? (optional)"
+							class="w-full"
+						/>
+					</div>
+				</div>
+			{/if}
+			<Sheet.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+				<Button onclick={handleSave}>Save</Button>
+				<Button variant="outline" onclick={closePreview}>Cancel</Button>
+			</Sheet.Footer>
+		</Sheet.Content>
+	</Sheet.Root>
 </div>
