@@ -3,14 +3,13 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { screenshot, folder } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { v2 as cloudinary } from 'cloudinary';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
 
 function getCloudinaryConfig(): { cloud_name: string; api_key: string; api_secret: string } | null {
-	// Option 1: Parse CLOUDINARY_URL (cloudinary://api_key:api_secret@cloud_name)
 	const url = env.CLOUDINARY_URL ?? process.env.CLOUDINARY_URL;
 	if (url) {
 		const match = url.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
@@ -22,7 +21,6 @@ function getCloudinaryConfig(): { cloud_name: string; api_key: string; api_secre
 			};
 		}
 	}
-	// Option 2: Separate env vars
 	if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
 		return {
 			cloud_name: env.CLOUDINARY_CLOUD_NAME,
@@ -35,49 +33,47 @@ function getCloudinaryConfig(): { cloud_name: string; api_key: string; api_secre
 
 export const load: PageServerLoad = async (event) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
-	if (!session?.user) return { screenshots: [] };
+	if (!session?.user) return redirect(302, '/demo/better-auth/login');
+
+	const folderId = parseInt(event.params.folderId, 10);
+	if (Number.isNaN(folderId)) return redirect(302, '/app');
+
+	const [folderRow] = await db
+		.select()
+		.from(folder)
+		.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+		.limit(1);
+
+	if (!folderRow) return redirect(302, '/app');
 
 	const screenshots = await db
 		.select()
 		.from(screenshot)
-		.where(eq(screenshot.userId, session.user.id))
+		.where(and(eq(screenshot.userId, session.user.id), eq(screenshot.folderId, folderId)))
 		.orderBy(desc(screenshot.createdAt));
 
-	return { screenshots };
+	return { folder: folderRow, screenshots };
 };
 
 export const actions: Actions = {
-	createFolder: async (event) => {
-		const session = await auth.api.getSession({ headers: event.request.headers });
-		if (!session?.user) {
-			return { success: false, error: 'You must be logged in to create a folder' };
-		}
-		const formData = await event.request.formData();
-		const name = (formData.get('name') as string)?.trim();
-		if (!name) {
-			return { success: false, error: 'Folder name is required' };
-		}
-		const [created] = await db
-			.insert(folder)
-			.values({ userId: session.user.id, name })
-			.returning({ id: folder.id });
-		if (!created) {
-			return { success: false, error: 'Failed to create folder' };
-		}
-		return redirect(302, `/app/folder/${created.id}`);
-	},
-
-	signOut: async (event) => {
-		await auth.api.signOut({
-			headers: event.request.headers
-		});
-		return redirect(302, '/demo/better-auth/login');
-	},
-
 	uploadScreenshot: async (event) => {
 		const session = await auth.api.getSession({ headers: event.request.headers });
 		if (!session?.user) {
 			return { success: false, error: 'You must be logged in to upload' };
+		}
+
+		const folderId = parseInt(event.params.folderId, 10);
+		if (Number.isNaN(folderId)) {
+			return { success: false, error: 'Invalid folder' };
+		}
+
+		const [folderRow] = await db
+			.select()
+			.from(folder)
+			.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+			.limit(1);
+		if (!folderRow) {
+			return { success: false, error: 'Folder not found' };
 		}
 
 		const cloudinaryConfig = getCloudinaryConfig();
@@ -117,6 +113,7 @@ export const actions: Actions = {
 
 			await db.insert(screenshot).values({
 				userId: session.user.id,
+				folderId,
 				url: result.secure_url,
 				fileName: file.name,
 				note

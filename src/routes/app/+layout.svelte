@@ -33,7 +33,7 @@
 	<div class="app-layout flex min-h-svh w-full flex-col">
 		<AppTopBar />
 		<div class="flex min-h-0 flex-1 pt-14">
-			<AppLeftSidebar />
+			<AppLeftSidebar folders={data.folders ?? []} />
 			<Sidebar.Inset>
 				<div class="flex h-full flex-col overflow-hidden">
 					<div class="flex min-h-0 flex-1">
