@@ -23,6 +23,7 @@
 		selected: Screenshot | null;
 		setSelected: (s: Screenshot | null) => void;
 	}>('selectedScreenshot');
+	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }) => void) => () => void }>('screenshotFilters');
 
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
@@ -201,11 +202,16 @@
 						type="button"
 						class="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
 						onclick={() => selectedCtx?.setSelected(selected?.id === shot.id ? null : shot)}
+						ondblclick={(e) => {
+							e.preventDefault();
+							selectedCtx?.setSelected(shot);
+							fullscreenCtx?.setFullscreen(shot);
+						}}
 					>
 						<img
 							src={cloudinaryUrl(shot.url, 'thumbnail')}
 							alt={shot.fileName}
-							class="w-full object-cover transition-transform group-hover:scale-105"
+							class="w-full object-contain transition-transform group-hover:scale-105 bg-muted/50"
 						/>
 						<div
 							class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100"

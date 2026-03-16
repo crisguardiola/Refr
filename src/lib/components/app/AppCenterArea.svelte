@@ -8,10 +8,12 @@
 
 	let {
 		children,
-		tags = []
+		tags = [],
+		tagCounts = {}
 	}: {
 		children?: Snippet;
 		tags?: Tag[];
+		tagCounts?: Record<number, number>;
 	} = $props();
 
 	const filterStore = writable<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>({
@@ -29,6 +31,7 @@
 	<div class="mb-6">
 		<SearchAndFilterBar
 			{tags}
+			{tagCounts}
 			{filterStore}
 		/>
 	</div>

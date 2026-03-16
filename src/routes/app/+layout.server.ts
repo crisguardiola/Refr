@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { folder, screenshot, tag } from '$lib/server/db/schema';
-import { eq, asc, and, isNull, isNotNull } from 'drizzle-orm';
+import { folder, screenshot, screenshotTag, tag } from '$lib/server/db/schema';
+import { eq, asc, and, isNull, isNotNull, sql } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -10,7 +10,7 @@ export const load: LayoutServerLoad = async (event) => {
 	}
 	const userId = event.locals.user.id;
 
-	const [folders, tags, countAll, countUncategorised, countTrash] = await Promise.all([
+	const [folders, tags, countAll, countUncategorised, countTrash, tagCountRows] = await Promise.all([
 		db.select().from(folder).where(eq(folder.userId, userId)).orderBy(asc(folder.createdAt)),
 		db.select().from(tag).orderBy(asc(tag.dimension), asc(tag.sortOrder)),
 		db.$count(
@@ -28,7 +28,16 @@ export const load: LayoutServerLoad = async (event) => {
 		db.$count(
 			screenshot,
 			and(eq(screenshot.userId, userId), isNotNull(screenshot.deletedAt))
-		)
+		),
+		db
+			.select({
+				tagId: screenshotTag.tagId,
+				count: sql<number>`cast(count(${screenshotTag.screenshotId}) as int)`
+			})
+			.from(screenshotTag)
+			.innerJoin(screenshot, eq(screenshotTag.screenshotId, screenshot.id))
+			.where(and(eq(screenshot.userId, userId), isNull(screenshot.deletedAt)))
+			.groupBy(screenshotTag.tagId)
 	]);
 
 	const foldersWithCount = await Promise.all(
@@ -45,10 +54,15 @@ export const load: LayoutServerLoad = async (event) => {
 		}))
 	);
 
+	const tagCounts = Object.fromEntries(
+		tagCountRows.map((r) => [r.tagId, r.count])
+	) as Record<number, number>;
+
 	return {
 		user: event.locals.user,
 		folders: foldersWithCount,
 		tags,
+		tagCounts,
 		counts: { all: countAll, uncategorised: countUncategorised, trash: countTrash }
 	};
 };

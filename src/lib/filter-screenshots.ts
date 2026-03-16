@@ -1,5 +1,5 @@
 /**
- * Filter screenshots by search query (fileName, note), selected tag IDs, and rating.
+ * Filter screenshots by search query (fileName, note, tag labels), selected tag IDs, and rating.
  * Screenshot must match the search query, have ALL selected tags, and match the rating filter.
  */
 
@@ -8,7 +8,7 @@ export type ScreenshotWithTags = {
 	fileName: string;
 	note?: string | null;
 	rating?: number | null;
-	tags?: { id: number }[];
+	tags?: { id: number; label?: string }[];
 };
 
 export function filterScreenshots<T extends ScreenshotWithTags>(
@@ -24,7 +24,10 @@ export function filterScreenshots<T extends ScreenshotWithTags>(
 		result = result.filter((s) => {
 			const nameMatch = s.fileName.toLowerCase().includes(q);
 			const noteMatch = s.note?.toLowerCase().includes(q);
-			return nameMatch || noteMatch;
+			const tagMatch = (s.tags ?? []).some(
+				(t) => 'label' in t && typeof t.label === 'string' && t.label.toLowerCase().includes(q)
+			);
+			return nameMatch || noteMatch || tagMatch;
 		});
 	}
 

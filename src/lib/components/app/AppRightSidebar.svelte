@@ -7,12 +7,14 @@
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { ImageIcon, Trash2, Plus, X, Star } from '@lucide/svelte';
+	import { ImageIcon, Trash2, Plus, X, Star, Search } from '@lucide/svelte';
+	import { Input } from '$lib/components/ui/input/index.js';
 
 	type Folder = { id: number; name: string; count?: number };
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
 
 	const RATING_MAX = 5;
+	const TAG_DROPDOWN_EST_HEIGHT = 220;
 
 	let {
 		selectedScreenshot = null,
@@ -39,10 +41,13 @@
 
 	let folderId = $state<string>('');
 	let addTagOpen = $state(false);
+	let tagSearchQuery = $state('');
 	let permanentDeleteOpen = $state(false);
 	let isSaving = $state(false);
 	let isSavingDetails = $state(false);
 	let addTagRef: HTMLDivElement;
+	let addTagTriggerRef: HTMLButtonElement;
+	let tagDropdownStyle = $state<{ top: string; left: string; width: string } | null>(null);
 	let localFileName = $state('');
 	let localNote = $state('');
 
@@ -58,6 +63,33 @@
 			clearTimeout(t);
 			document.removeEventListener('click', handler);
 		};
+	});
+
+	$effect(() => {
+		if (!addTagOpen) tagSearchQuery = '';
+	});
+
+	$effect(() => {
+		if (!addTagOpen || !addTagTriggerRef) {
+			tagDropdownStyle = null;
+			return;
+		}
+		function updatePosition() {
+			if (!addTagTriggerRef) return;
+			const rect = addTagTriggerRef.getBoundingClientRect();
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			const openUpward = spaceBelow < TAG_DROPDOWN_EST_HEIGHT && spaceAbove > spaceBelow;
+			const width = 256;
+			const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+			const top = openUpward
+				? `${rect.top - TAG_DROPDOWN_EST_HEIGHT - 4}px`
+				: `${rect.bottom + 4}px`;
+			tagDropdownStyle = { top, left: `${left}px`, width: `${width}px` };
+		}
+		updatePosition();
+		window.addEventListener('resize', updatePosition);
+		return () => window.removeEventListener('resize', updatePosition);
 	});
 
 	$effect(() => {
@@ -84,6 +116,15 @@
 
 	const availableToAdd = $derived(
 		tags.filter((t) => !selectedTagIds.has(t.id))
+	);
+
+	const filteredAvailableToAdd = $derived(
+		(() => {
+			const q = tagSearchQuery.trim().toLowerCase();
+			return q
+				? availableToAdd.filter((t) => t.label.toLowerCase().includes(q))
+				: availableToAdd;
+		})()
 	);
 
 	const isTrashPage = $derived($page?.url?.pathname === '/app/trash');
@@ -202,7 +243,7 @@
 				<img
 					src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
 					alt={selectedScreenshot.fileName}
-					class="w-1/3 rounded-lg border border-border object-cover"
+					class="w-full max-h-48 rounded-lg border border-border object-contain bg-muted/30"
 				/>
 			</div>
 			<dl class="space-y-3 text-sm">
@@ -301,6 +342,7 @@
 							{/each}
 							<div class="relative" bind:this={addTagRef}>
 								<button
+									bind:this={addTagTriggerRef}
 									type="button"
 									onclick={(e) => {
 										e.stopPropagation();
@@ -312,27 +354,47 @@
 								>
 									<Plus class="size-3.5 text-muted-foreground" />
 								</button>
-								{#if addTagOpen}
+								{#if addTagOpen && tagDropdownStyle}
 									<div
-										class="absolute left-0 top-full z-50 mt-1 max-h-48 w-64 overflow-auto rounded-md border border-border bg-background py-1 shadow-lg"
+										class="fixed z-50 overflow-hidden rounded-md border border-border bg-background shadow-lg"
+										style="top: {tagDropdownStyle.top}; left: {tagDropdownStyle.left}; width: {tagDropdownStyle.width};"
 										role="listbox"
 									>
-										{#if availableToAdd.length === 0}
-											<p class="px-3 py-2 text-xs text-muted-foreground">All tags added</p>
-										{:else}
-											{#each availableToAdd as t (t.id)}
-												<button
-													type="button"
-													role="option"
-													aria-selected="false"
-													onclick={() => addTag(t.id)}
-													class="block w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
-												>
-													{t.label}
-													<span class="text-muted-foreground text-xs"> — {t.dimension === 'ui_type' ? 'UI element' : t.dimension}</span>
-												</button>
-											{/each}
-										{/if}
+										<div class="border-b border-border p-1.5">
+											<div class="relative">
+												<Search
+													class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+													aria-hidden="true"
+												/>
+												<Input
+													bind:value={tagSearchQuery}
+													type="search"
+													placeholder="Search tags..."
+													class="h-8 pl-7 text-xs"
+													aria-label="Search tags"
+												/>
+											</div>
+										</div>
+										<div class="max-h-40 overflow-auto py-1">
+											{#if availableToAdd.length === 0}
+												<p class="px-3 py-2 text-xs text-muted-foreground">All tags added</p>
+											{:else if filteredAvailableToAdd.length === 0}
+												<p class="px-3 py-2 text-xs text-muted-foreground">No matching tags</p>
+											{:else}
+												{#each filteredAvailableToAdd as t (t.id)}
+													<button
+														type="button"
+														role="option"
+														aria-selected="false"
+														onclick={() => addTag(t.id)}
+														class="block w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+													>
+														{t.label}
+														<span class="text-muted-foreground text-xs"> — {t.dimension === 'ui_type' ? 'UI element' : t.dimension}</span>
+													</button>
+												{/each}
+											{/if}
+										</div>
 									</div>
 								{/if}
 							</div>

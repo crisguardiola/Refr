@@ -9,7 +9,9 @@ const PRESETS = {
 	/** Full-size for detail view (max 1200px) */
 	detail: 'w_1200,f_auto,q_auto',
 	/** Sidebar preview (~400px) */
-	sidebar: 'w_400,c_fill,f_auto,q_auto'
+	sidebar: 'w_400,c_fill,f_auto,q_auto',
+	/** Fullscreen view (max 1920px) */
+	fullscreen: 'w_1920,f_auto,q_auto'
 } as const;
 
 /**

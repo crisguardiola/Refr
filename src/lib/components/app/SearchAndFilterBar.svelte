@@ -7,17 +7,70 @@
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
 
 	const RATING_MAX = 5;
+	const SEARCH_DEBOUNCE_MS = 200;
+	const TAG_SEARCH_THRESHOLD = 6;
+	const DIMENSION_LABELS: Record<string, string> = {
+		ui_type: 'UI Type',
+		color: 'Color',
+		pattern: 'Pattern'
+	};
 
 	let {
 		tags = [],
+		tagCounts = {},
 		filterStore
 	}: {
 		tags?: Tag[];
+		tagCounts?: Record<number, number>;
 		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>;
 	} = $props();
 
 	let filterOpen = $state(false);
 	let ratingFilterOpen = $state(false);
+	let searchInputValue = $state('');
+	let tagSearchQuery = $state('');
+	let tagsRef: HTMLDetailsElement;
+	let ratingRef: HTMLDetailsElement;
+
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		searchInputValue = $filterStore.searchQuery;
+	});
+
+	$effect(() => {
+		if (!filterOpen) tagSearchQuery = '';
+	});
+
+	$effect(() => {
+		if (!filterOpen) return;
+		function handleClickOutside(e: MouseEvent) {
+			if (tagsRef && !tagsRef.contains(e.target as Node)) {
+				filterOpen = false;
+			}
+		}
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
+
+	$effect(() => {
+		if (!ratingFilterOpen) return;
+		function handleClickOutside(e: MouseEvent) {
+			if (ratingRef && !ratingRef.contains(e.target as Node)) {
+				ratingFilterOpen = false;
+			}
+		}
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
+
+	function debouncedUpdateSearch(value: string) {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			filterStore.update((prev) => ({ ...prev, searchQuery: value }));
+			debounceTimer = null;
+		}, SEARCH_DEBOUNCE_MS);
+	}
 
 	function toggleTag(id: number) {
 		filterStore.update((prev) => {
@@ -34,7 +87,10 @@
 	}
 
 	function clearFilters() {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = null;
 		filterStore.set({ searchQuery: '', selectedTagIds: [], selectedRating: null });
+		searchInputValue = '';
 		filterOpen = false;
 		ratingFilterOpen = false;
 	}
@@ -45,9 +101,29 @@
 	);
 	const selectedTags = $derived(tags.filter((t) => filter.selectedTagIds.includes(t.id)));
 
+	const tagsByDimension = $derived(
+		(() => {
+			const q = tagSearchQuery.trim().toLowerCase();
+			const filteredTags = q
+				? tags.filter((t) => t.label.toLowerCase().includes(q))
+				: tags;
+			const map: Record<string, Tag[]> = {};
+			for (const t of filteredTags) {
+				if (!map[t.dimension]) map[t.dimension] = [];
+				map[t.dimension].push(t);
+			}
+			// Sort dimensions: ui_type, color, pattern
+			const order = ['ui_type', 'color', 'pattern'];
+			return order.filter((d) => map[d]?.length).map((d) => ({ dimension: d, tags: map[d] }));
+		})()
+	);
+
+	const showTagSearch = $derived(tags.length >= TAG_SEARCH_THRESHOLD);
+
 	function onSearchInput(e: Event) {
 		const v = (e.target as HTMLInputElement).value;
-		filterStore.update((prev) => ({ ...prev, searchQuery: v }));
+		searchInputValue = v;
+		debouncedUpdateSearch(v);
 	}
 </script>
 
@@ -59,15 +135,16 @@
 				aria-hidden="true"
 			/>
 			<Input
-				value={filter.searchQuery}
+				value={searchInputValue}
 				oninput={onSearchInput}
 				type="search"
-				placeholder="Search by name..."
+				placeholder="Search by name, note, or tags..."
 				class="h-9 pl-9"
-				aria-label="Search screenshots by name"
+				aria-label="Search screenshots by name, note, or tags"
 			/>
 		</div>
 		<details
+			bind:this={tagsRef}
 			bind:open={filterOpen}
 			class="group"
 		>
@@ -86,24 +163,50 @@
 				{/if}
 			</summary>
 			<div
-				class="mt-2 max-h-48 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-md"
+				class="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-md"
 			>
-				<div class="flex flex-wrap gap-2">
-					{#each tags as tag (tag.id)}
-						<button
-							type="button"
-							class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-								? 'border-primary bg-primary text-primary-foreground'
-								: 'border-input bg-muted/50 hover:bg-muted'}"
-							onclick={() => toggleTag(tag.id)}
-						>
-							{tag.label}
-						</button>
-					{/each}
-				</div>
+				{#if showTagSearch}
+					<div class="relative mb-3">
+						<Search
+							class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+							aria-hidden="true"
+						/>
+						<Input
+							bind:value={tagSearchQuery}
+							type="search"
+							placeholder="Search tags..."
+							class="h-8 pl-8 text-xs"
+							aria-label="Search tags"
+						/>
+					</div>
+				{/if}
+				{#each tagsByDimension as { dimension, tags: dimTags }}
+					<div class="mb-3 last:mb-0">
+						<p class="mb-1.5 text-xs font-medium text-muted-foreground">
+							{DIMENSION_LABELS[dimension] ?? dimension}
+						</p>
+						<div class="flex flex-wrap gap-2">
+							{#each dimTags as tag (tag.id)}
+								{@const count = tagCounts[tag.id]}
+								<button
+									type="button"
+									class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
+										? 'border-primary bg-primary text-primary-foreground'
+										: 'border-input bg-muted/50 hover:bg-muted'}"
+									onclick={() => toggleTag(tag.id)}
+								>
+									{tag.label}{#if count != null}
+										<span class="ml-1 opacity-70">({count})</span>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/each}
 			</div>
 		</details>
 		<details
+			bind:this={ratingRef}
 			bind:open={ratingFilterOpen}
 			class="group"
 		>
