@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
-	import { Download, ImageIcon, Upload } from '@lucide/svelte';
+	import { Download, ImageIcon } from '@lucide/svelte';
+	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
@@ -141,54 +142,47 @@
 	}
 </script>
 
+<input
+	bind:this={fileInput}
+	type="file"
+	accept={ACCEPT}
+	class="sr-only"
+	onchange={handleFileSelect}
+	aria-label="Upload screenshot"
+/>
 <div class="flex flex-1 flex-col gap-6">
 	{#if isEmpty}
-		<div
-			role="button"
-			tabindex="0"
-			class="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed transition-colors cursor-pointer {isDragging
-				? 'border-primary bg-primary/5'
-				: 'border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/50'}"
+		<UploadDropZone
+			variant="empty"
+			emptyTitle="No screenshots in this folder"
+			emptySubtitle="Drag and drop an image, or click to browse"
+			dropTitle="Drop your screenshot here"
+			dropSubtitle="Release to upload"
+			{isDragging}
+			onclick={() => fileInput?.click()}
+			onkeydown={(e) => e.key === 'Enter' && fileInput?.click()}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
-			onkeydown={(e) => e.key === 'Enter' && fileInput?.click()}
-		>
-			<div
-				class="flex size-16 items-center justify-center rounded-full bg-muted transition-colors {isDragging
-					? 'bg-primary/10'
-					: ''}"
-			>
-				<ImageIcon class="size-8 text-muted-foreground" aria-hidden="true" />
-			</div>
-			<div class="text-center space-y-1">
-				<p class="text-sm font-medium">
-					{isDragging ? 'Drop your screenshot here' : 'No screenshots in this folder'}
-				</p>
-				<p class="text-muted-foreground text-xs">
-					{isDragging ? 'Release to upload' : 'Drag and drop an image, or upload via button'}
-				</p>
-			</div>
-			<input
-				bind:this={fileInput}
-				type="file"
-				accept={ACCEPT}
-				class="sr-only"
-				onchange={handleFileSelect}
-				aria-label="Upload screenshot"
-			/>
-			<Button
-				variant="outline"
-				size="sm"
+		/>
+	{:else}
+		<div class="flex flex-col gap-4">
+			<UploadDropZone
+				variant="add-more"
+				compact
+				addMoreLabel="Add screenshot"
+				addMoreSubtitle="Drop or click to upload"
+				dropTitle="Drop to add"
+				dropSubtitle="Release to upload"
+				{isDragging}
 				onclick={() => fileInput?.click()}
 				onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fileInput?.click())}
-			>
-				<Upload class="size-4" />
-				Upload screenshot
-			</Button>
-		</div>
-	{:else}
-		<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
+				ondragover={handleDragOver}
+				ondragleave={handleDragLeave}
+				ondrop={handleDrop}
+				class="mb-0"
+			/>
+			<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
 			{#each screenshots as shot (shot.id)}
 				<div
 					role="listitem"
@@ -230,31 +224,7 @@
 					</Button>
 				</div>
 			{/each}
-			<div
-				role="button"
-				tabindex="0"
-				class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors cursor-pointer break-inside-avoid mb-4 {isDragging
-					? 'border-primary bg-primary/5'
-					: 'border-muted-foreground/25 bg-muted/30 hover:border-muted-foreground/50 hover:bg-muted/50'}"
-				ondragover={handleDragOver}
-				ondragleave={handleDragLeave}
-				ondrop={handleDrop}
-				onclick={() => fileInput?.click()}
-				onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fileInput?.click())}
-			>
-				<Upload class="size-6 text-muted-foreground" />
-				<span class="text-muted-foreground text-xs">
-					{isDragging ? 'Drop to add' : 'Add more — drop or click'}
-				</span>
-				<input
-					bind:this={fileInput}
-					type="file"
-					accept={ACCEPT}
-					class="sr-only"
-					onchange={handleFileSelect}
-					aria-label="Upload screenshot"
-				/>
-			</div>
+		</div>
 		</div>
 	{/if}
 
