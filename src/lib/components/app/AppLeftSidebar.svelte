@@ -7,6 +7,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import { SCREENSHOT_DRAG_TYPE } from '$lib/move-screenshot.js';
+	import { moveScreenshot } from '$lib/move-screenshot.js';
 	import { Folder, FolderOpen, FolderPlus, Trash2 } from '@lucide/svelte';
 
 	let {
@@ -26,6 +28,32 @@
 
 	let createFolderOpen = $state(false);
 	let folderName = $state('');
+
+	function handleFolderDragOver(e: DragEvent) {
+		if (e.dataTransfer?.types.includes(SCREENSHOT_DRAG_TYPE)) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'move';
+		}
+	}
+
+	async function handleFolderDrop(
+		e: DragEvent,
+		target: 'uncategorised' | 'trash' | number
+	) {
+		if (!e.dataTransfer?.types.includes(SCREENSHOT_DRAG_TYPE)) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const raw = e.dataTransfer.getData(SCREENSHOT_DRAG_TYPE);
+		if (!raw) return;
+		let data: { screenshotId: number; tagIds: number[] };
+		try {
+			data = JSON.parse(raw);
+		} catch {
+			return;
+		}
+		const ok = await moveScreenshot(data.screenshotId, target, data.tagIds);
+		if (ok) await invalidateAll();
+	}
 </script>
 
 <Sidebar.Root>
@@ -53,6 +81,8 @@
 							isActive={isUncategorisedSelected}
 							tooltipContent="Uncategorised"
 							onclick={() => goto('/app/uncategorised')}
+							ondragover={handleFolderDragOver}
+							ondrop={(e) => handleFolderDrop(e, 'uncategorised')}
 						>
 							<FolderOpen class="size-4" />
 							<span>Uncategorised</span>
@@ -64,6 +94,8 @@
 							isActive={isTrashSelected}
 							tooltipContent="Trash"
 							onclick={() => goto('/app/trash')}
+							ondragover={handleFolderDragOver}
+							ondrop={(e) => handleFolderDrop(e, 'trash')}
 						>
 							<Trash2 class="size-4" />
 							<span>Trash</span>
@@ -88,6 +120,8 @@
 								isActive={isFolderSelected(f.id)}
 								tooltipContent={f.name}
 								onclick={() => goto(`/app/folder/${f.id}`)}
+								ondragover={handleFolderDragOver}
+								ondrop={(e) => handleFolderDrop(e, f.id)}
 							>
 								<Folder class="size-4" />
 								<span>{f.name}</span>

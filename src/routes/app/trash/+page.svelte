@@ -2,7 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { getContext } from 'svelte';
-	import { RotateCcw, Trash2, X } from '@lucide/svelte';
+	import { Copy, RotateCcw, Trash2 } from '@lucide/svelte';
+import { copyImageToClipboard } from '$lib/copy-image.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -42,27 +43,23 @@
 	);
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
+
+	let copiedId = $state<number | null>(null);
+
+	async function handleCopy(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
+		e.preventDefault();
+		e.stopPropagation();
+		const url = cloudinaryUrl(shot.url, 'detail');
+		const ok = await copyImageToClipboard(url);
+		if (ok) {
+			copiedId = shot.id;
+			setTimeout(() => (copiedId = null), 1500);
+		}
+	}
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	{#if selected}
-		<div class="relative flex flex-1 flex-col items-center justify-center">
-			<Button
-				variant="ghost"
-				size="icon"
-				class="absolute right-0 top-0 z-10"
-				onclick={() => selectedCtx?.setSelected(null)}
-				aria-label="Close preview"
-			>
-				<X class="size-4" />
-			</Button>
-			<img
-				src={cloudinaryUrl(selected.url, 'detail')}
-				alt={selected.fileName}
-				class="max-h-[calc(100vh-12rem)] max-w-full rounded-lg object-contain shadow-lg"
-			/>
-		</div>
-	{:else if isEmpty}
+	{#if isEmpty}
 		<div
 			class="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-muted-foreground/25 py-16"
 		>
@@ -78,12 +75,14 @@
 		<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
 			{#each screenshots as shot (shot.id)}
 				<div
-					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border border-border bg-muted"
+					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted {selected?.id === shot.id
+						? 'border-2 border-primary'
+						: 'border border-border'}"
 				>
 					<button
 						type="button"
 						class="block w-full text-left"
-						onclick={() => selectedCtx?.setSelected(shot)}
+						onclick={() => selectedCtx?.setSelected(selected?.id === shot.id ? null : shot)}
 					>
 						<img
 							src={cloudinaryUrl(shot.url, 'thumbnail')}
@@ -96,6 +95,21 @@
 							<p class="truncate text-xs text-white">{shot.fileName}</p>
 						</div>
 					</button>
+					<Button
+						variant="ghost"
+						size="icon"
+						class="absolute right-2 top-2 size-8 rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70"
+						aria-label={copiedId === shot.id ? 'Copied!' : 'Copy image'}
+						onclick={(e) => handleCopy(e, shot)}
+					>
+						{#if copiedId === shot.id}
+							<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+							</svg>
+						{:else}
+							<Copy class="size-4" />
+						{/if}
+					</Button>
 					<div class="flex gap-1 p-2">
 						<form
 							method="post"
