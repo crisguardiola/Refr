@@ -3,7 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Star } from '@lucide/svelte';
 
 	type Folder = { id: number; name: string; count?: number };
@@ -120,17 +120,19 @@
 	}
 </script>
 
-<Sheet.Root
+<Dialog.Root
 	open={open}
 	onOpenChange={(o) => {
 		onOpenChange?.(o);
 	}}
 >
-	<Sheet.Content side="bottom" class="max-h-[85vh] flex flex-col">
-		<Sheet.Header>
-			<Sheet.Title>Add screenshot</Sheet.Title>
-			<Sheet.Description>Add an optional note and assign to a folder.</Sheet.Description>
-		</Sheet.Header>
+	<Dialog.Content class="w-[min(24rem,calc(100vw-2rem))] max-h-[85vh] flex flex-col gap-4 overflow-hidden p-0">
+		<Dialog.Header class="px-4 pt-4 pb-0">
+			<Dialog.Title>Add screenshot</Dialog.Title>
+			<Dialog.Description>
+				Add an optional note and assign to a folder.
+			</Dialog.Description>
+		</Dialog.Header>
 		{#if previewUrl}
 			<div class="flex flex-1 flex-col gap-4 overflow-auto px-4">
 				<img
@@ -234,11 +236,11 @@
 				{/if}
 			</div>
 		{/if}
-		<Sheet.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+		<Dialog.Footer class="flex-row-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row-reverse">
 			<Button onclick={handleSave} disabled={isSubmitting || !pendingFile}>
 				{isSubmitting ? 'Saving…' : 'Save'}
 			</Button>
 			<Button variant="outline" onclick={() => onOpenChange?.(false)}>Cancel</Button>
-		</Sheet.Footer>
-	</Sheet.Content>
-</Sheet.Root>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

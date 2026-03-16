@@ -6,7 +6,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Folder, FolderOpen, FolderPlus, Trash2 } from '@lucide/svelte';
 
 	let {
@@ -97,68 +97,64 @@
 					{/each}
 				</Sidebar.Menu>
 				<div class="flex flex-col items-center justify-center gap-4 px-4 py-6 text-center">
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => {
-							folderName = '';
-							createFolderOpen = true;
+					<Dialog.Root
+						bind:open={createFolderOpen}
+						onOpenChange={(isOpen) => {
+							if (!isOpen) folderName = '';
 						}}
 					>
-						<FolderPlus class="size-4" />
-						Create folder
-					</Button>
+						<Dialog.Trigger
+							class="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+						>
+							<FolderPlus class="size-4" />
+							Create folder
+						</Dialog.Trigger>
+						<Dialog.Content class="w-80 max-w-[calc(100%-2rem)]">
+							<Dialog.Header>
+								<Dialog.Title>Create folder</Dialog.Title>
+								<Dialog.Description>
+									Give your folder a name to organise your screenshots.
+								</Dialog.Description>
+							</Dialog.Header>
+							<form
+								method="post"
+								action="/app?/createFolder"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'redirect') {
+											createFolderOpen = false;
+											await invalidateAll();
+										}
+									};
+								}}
+								class="flex flex-col gap-4"
+							>
+								<div class="space-y-2">
+									<label for="folder-name" class="text-sm font-medium">Folder name</label>
+									<Input
+										id="folder-name"
+										name="name"
+										bind:value={folderName}
+										placeholder="e.g. UI inspiration"
+										class="w-full"
+										required
+									/>
+								</div>
+								<Dialog.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+									<Button type="submit">Create</Button>
+									<Button
+										type="button"
+										variant="outline"
+										onclick={() => (createFolderOpen = false)}
+									>
+										Cancel
+									</Button>
+								</Dialog.Footer>
+							</form>
+						</Dialog.Content>
+					</Dialog.Root>
 				</div>
 			</Sidebar.GroupContent>
 		</Sidebar.Group>
 	</Sidebar.Content>
 </Sidebar.Root>
-
-<Sheet.Root
-	bind:open={createFolderOpen}
-	onOpenChange={(open) => {
-		if (!open) folderName = '';
-	}}
->
-	<Sheet.Content side="bottom" class="max-h-[85vh] flex flex-col">
-		<Sheet.Header>
-			<Sheet.Title>Create folder</Sheet.Title>
-			<Sheet.Description>Give your folder a name to organise your screenshots.</Sheet.Description>
-		</Sheet.Header>
-		<form
-			method="post"
-			action="/app?/createFolder"
-			use:enhance={() => {
-				return async ({ result }) => {
-					if (result.type === 'redirect') {
-						createFolderOpen = false;
-						await invalidateAll();
-					}
-				};
-			}}
-			class="flex flex-1 flex-col gap-4 overflow-auto px-4"
-		>
-			<div class="space-y-2">
-				<label for="folder-name" class="text-sm font-medium">Folder name</label>
-				<Input
-					id="folder-name"
-					name="name"
-					bind:value={folderName}
-					placeholder="e.g. UI inspiration"
-					class="w-full"
-					required
-				/>
-			</div>
-			<Sheet.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
-				<Button type="submit">Create</Button>
-				<Button
-					type="button"
-					variant="outline"
-					onclick={() => (createFolderOpen = false)}
-				>
-					Cancel
-				</Button>
-			</Sheet.Footer>
-		</form>
-	</Sheet.Content>
-</Sheet.Root>
