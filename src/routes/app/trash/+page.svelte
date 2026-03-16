@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import { getContext } from 'svelte';
-	import { Copy, RotateCcw, Trash2 } from '@lucide/svelte';
-import { copyImageToClipboard } from '$lib/copy-image.js';
+	import { Copy, Trash2 } from '@lucide/svelte';
+	import { copyImageToClipboard } from '$lib/copy-image.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -110,37 +108,6 @@ import { copyImageToClipboard } from '$lib/copy-image.js';
 							<Copy class="size-4" />
 						{/if}
 					</Button>
-					<div class="flex gap-1 p-2">
-						<form
-							method="post"
-							action="?/restore"
-							use:enhance={() => async ({ result }) => {
-								if (result.type === 'success') await invalidateAll();
-							}}
-						>
-							<input type="hidden" name="id" value={shot.id} />
-							<Button type="submit" variant="ghost" size="sm" class="h-8 px-2">
-								<RotateCcw class="size-3.5" />
-								Restore
-							</Button>
-						</form>
-						<form
-							method="post"
-							action="?/permanentDelete"
-							use:enhance={() => async ({ result }) => {
-								if (result.type === 'success') {
-									selectedCtx?.setSelected(null);
-									await invalidateAll();
-								}
-							}}
-						>
-							<input type="hidden" name="id" value={shot.id} />
-							<Button type="submit" variant="ghost" size="sm" class="h-8 px-2 text-destructive hover:text-destructive">
-								<Trash2 class="size-3.5" />
-								Delete
-							</Button>
-						</form>
-					</div>
 				</div>
 			{/each}
 		</div>

@@ -6,6 +6,7 @@
 	import { cn } from '$lib/utils.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { ImageIcon, Trash2, Plus, X, Star } from '@lucide/svelte';
 
 	type Folder = { id: number; name: string; count?: number };
@@ -38,6 +39,7 @@
 
 	let folderId = $state<string>('');
 	let addTagOpen = $state(false);
+	let permanentDeleteOpen = $state(false);
 	let isSaving = $state(false);
 	let isSavingDetails = $state(false);
 	let addTagRef: HTMLDivElement;
@@ -360,23 +362,15 @@
 							Restore
 						</Button>
 					</form>
-					<form
-						method="post"
-						action="/app/trash?/permanentDelete"
-						use:enhance={() => {
-							return async ({ result }) => {
-								if (result.type === 'success') {
-									selectedCtx?.setSelected(null);
-									await invalidateAll();
-								}
-							};
-						}}
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						class="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+						onclick={() => (permanentDeleteOpen = true)}
 					>
-						<input type="hidden" name="id" value={selectedScreenshot.id} />
-						<Button type="submit" variant="outline" size="sm" class="w-full text-destructive hover:bg-destructive/10 hover:text-destructive">
-							Delete permanently
-						</Button>
-					</form>
+						Delete permanently
+					</Button>
 				</div>
 			{:else}
 				<form
@@ -404,5 +398,45 @@
 			<ImageIcon class="size-12 text-muted-foreground" aria-hidden="true" />
 			<p class="text-muted-foreground text-sm">Select a screenshot to view details</p>
 		</div>
+	{/if}
+
+	{#if isTrashPage && selectedScreenshot}
+		<Dialog.Root bind:open={permanentDeleteOpen}>
+			<Dialog.Content class="sm:max-w-md">
+				<Dialog.Header>
+					<Dialog.Title>Delete forever?</Dialog.Title>
+					<Dialog.Description>
+						This screenshot will be permanently removed. This action cannot be undone.
+					</Dialog.Description>
+				</Dialog.Header>
+				<form
+					method="post"
+					action="/app/trash?/permanentDelete"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								permanentDeleteOpen = false;
+								selectedCtx?.setSelected(null);
+								await invalidateAll();
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="id" value={selectedScreenshot.id} />
+					<Dialog.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+						<Button type="submit" variant="destructive">
+							Delete forever
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => (permanentDeleteOpen = false)}
+						>
+							Cancel
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
 	{/if}
 </aside>
