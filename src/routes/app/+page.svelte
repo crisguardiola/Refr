@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
-	import { Copy, ImageIcon, Upload } from '@lucide/svelte';
-import { copyImageToClipboard } from '$lib/copy-image.js';
+	import { Download, ImageIcon, Upload } from '@lucide/svelte';
 	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
@@ -122,16 +121,21 @@ import { copyImageToClipboard } from '$lib/copy-image.js';
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived<number | null>(null);
 
-	let copiedId = $state<number | null>(null);
-
-	async function handleCopy(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
+	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
 		e.preventDefault();
 		e.stopPropagation();
 		const url = cloudinaryUrl(shot.url, 'detail');
-		const ok = await copyImageToClipboard(url);
-		if (ok) {
-			copiedId = shot.id;
-			setTimeout(() => (copiedId = null), 1500);
+		try {
+			const res = await fetch(url);
+			const blob = await res.blob();
+			const blobUrl = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = blobUrl;
+			a.download = shot.fileName || 'screenshot.png';
+			a.click();
+			URL.revokeObjectURL(blobUrl);
+		} catch {
+			window.open(url, '_blank');
 		}
 	}
 </script>
@@ -213,16 +217,10 @@ import { copyImageToClipboard } from '$lib/copy-image.js';
 						variant="ghost"
 						size="icon"
 						class="absolute right-2 top-2 size-8 rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70"
-						aria-label={copiedId === shot.id ? 'Copied!' : 'Copy image'}
-						onclick={(e) => handleCopy(e, shot)}
+						aria-label="Download screenshot"
+						onclick={(e) => handleDownload(e, shot)}
 					>
-						{#if copiedId === shot.id}
-							<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-							</svg>
-						{:else}
-							<Copy class="size-4" />
-						{/if}
+						<Download class="size-4" />
 					</Button>
 				</div>
 			{/each}
