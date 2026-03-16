@@ -28,12 +28,18 @@
 
 	let createFolderOpen = $state(false);
 	let folderName = $state('');
+	let dropTarget = $state<'uncategorised' | 'trash' | number | null>(null);
 
-	function handleFolderDragOver(e: DragEvent) {
+	function handleFolderDragOver(e: DragEvent, target: 'uncategorised' | 'trash' | number) {
 		if (e.dataTransfer?.types.includes(SCREENSHOT_DRAG_TYPE)) {
 			e.preventDefault();
 			e.dataTransfer.dropEffect = 'move';
+			dropTarget = target;
 		}
+	}
+
+	function handleFolderDragLeave() {
+		dropTarget = null;
 	}
 
 	async function handleFolderDrop(
@@ -53,7 +59,10 @@
 		}
 		const ok = await moveScreenshot(data.screenshotId, target, data.tagIds);
 		if (ok) await invalidateAll();
+		dropTarget = null;
 	}
+
+	const dropTargetClass = 'ring-2 ring-primary ring-offset-2 bg-primary/15 border border-primary/50';
 </script>
 
 <Sidebar.Root>
@@ -80,8 +89,10 @@
 						<Sidebar.MenuButton
 							isActive={isUncategorisedSelected}
 							tooltipContent="Uncategorised"
+							class={dropTarget === 'uncategorised' ? dropTargetClass : ''}
 							onclick={() => goto('/app/uncategorised')}
-							ondragover={handleFolderDragOver}
+							ondragover={(e) => handleFolderDragOver(e, 'uncategorised')}
+							ondragleave={handleFolderDragLeave}
 							ondrop={(e) => handleFolderDrop(e, 'uncategorised')}
 						>
 							<FolderOpen class="size-4" />
@@ -93,8 +104,10 @@
 						<Sidebar.MenuButton
 							isActive={isTrashSelected}
 							tooltipContent="Trash"
+							class={dropTarget === 'trash' ? dropTargetClass : ''}
 							onclick={() => goto('/app/trash')}
-							ondragover={handleFolderDragOver}
+							ondragover={(e) => handleFolderDragOver(e, 'trash')}
+							ondragleave={handleFolderDragLeave}
 							ondrop={(e) => handleFolderDrop(e, 'trash')}
 						>
 							<Trash2 class="size-4" />
@@ -119,8 +132,10 @@
 							<Sidebar.MenuButton
 								isActive={isFolderSelected(f.id)}
 								tooltipContent={f.name}
+								class={dropTarget === f.id ? dropTargetClass : ''}
 								onclick={() => goto(`/app/folder/${f.id}`)}
-								ondragover={handleFolderDragOver}
+								ondragover={(e) => handleFolderDragOver(e, f.id)}
+								ondragleave={handleFolderDragLeave}
 								ondrop={(e) => handleFolderDrop(e, f.id)}
 							>
 								<Folder class="size-4" />
