@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Download, Pencil, Settings, Trash2 } from '@lucide/svelte';
+	import { Download, Heart, Maximize2, MoreVertical, Pencil, Settings, Trash2 } from '@lucide/svelte';
 	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -22,7 +22,9 @@
 		url: string;
 		fileName: string;
 		note?: string | null;
+		favourite?: boolean;
 		createdAt: Date | string;
+		folder?: { id: number; name: string } | null;
 		tags?: { id: number }[];
 	};
 	const selectedCtx = getContext<{
@@ -128,6 +130,7 @@
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived(data.folder?.id ?? null);
 	const folderName = $derived(data.folder?.name ?? '');
+	let menuOpenForId = $state<number | null>(null);
 	let editFolderOpen = $state(false);
 	let deleteFolderOpen = $state(false);
 	let folderMenuOpen = $state(false);
@@ -141,6 +144,7 @@
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
 		e.preventDefault();
 		e.stopPropagation();
+		menuOpenForId = null;
 		const url = cloudinaryUrl(shot.url, 'detail');
 		try {
 			const res = await fetch(url);
@@ -154,6 +158,39 @@
 		} catch {
 			window.open(url, '_blank');
 		}
+	}
+
+	async function handleFavouriteToggle(
+		e: MouseEvent,
+		shot: { id: number; favourite?: boolean; folder?: { id: number } | null; tags?: { id: number }[] }
+	) {
+		e.preventDefault();
+		e.stopPropagation();
+		const next = !shot.favourite;
+		const formData = new FormData();
+		formData.append('id', String(shot.id));
+		formData.append('favourite', next ? '1' : '0');
+		formData.append('folderId', shot.folder?.id != null ? String(shot.folder.id) : '');
+		formData.append('tags', (shot.tags ?? []).map((t) => t.id).join(','));
+		try {
+			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
+			const json = await res.json();
+			if (json?.success) {
+				if (selected?.id === shot.id) {
+					selectedCtx?.setSelected({ ...shot, favourite: next } as Screenshot);
+				}
+				await invalidateAll();
+			}
+		} catch (err) {
+			console.error('Favourite toggle failed:', err);
+		}
+	}
+
+	function handleOpenImage(e: MouseEvent, shot: Screenshot) {
+		e.preventDefault();
+		e.stopPropagation();
+		menuOpenForId = null;
+		fullscreenCtx?.setFullscreen(shot);
 	}
 </script>
 
@@ -330,21 +367,53 @@
 							alt={shot.fileName}
 							class="w-full object-contain transition-transform group-hover:scale-105 bg-muted/50"
 						/>
-						<div
-							class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100"
-						>
-							<p class="truncate text-xs text-white">{shot.fileName}</p>
-						</div>
 					</button>
 					<Button
 						variant="ghost"
 						size="icon"
-						class="absolute right-2 top-2 size-8 rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70"
-						aria-label="Download screenshot"
-						onclick={(e) => handleDownload(e, shot)}
+						class="absolute left-2 bottom-2 size-8 rounded-md bg-black/50 text-white transition-opacity group-hover:opacity-100 hover:bg-black/70 {shot.favourite ? 'opacity-100' : 'opacity-0'}"
+						aria-label={shot.favourite ? 'Remove from favourites' : 'Add to favourites'}
+						aria-pressed={shot.favourite}
+						onclick={(e) => handleFavouriteToggle(e, shot)}
 					>
-						<Download class="size-4" />
+						<Heart
+							class="size-4 transition-colors {shot.favourite
+								? 'fill-rose-500 text-rose-500'
+								: 'text-white/90'}"
+						/>
 					</Button>
+					<Popover.Root
+						open={menuOpenForId === shot.id}
+						onOpenChange={(o) => (menuOpenForId = o ? shot.id : null)}
+					>
+						<Popover.Trigger
+							class="absolute right-2 top-2 size-8 rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70 flex items-center justify-center"
+							aria-label="Screenshot options"
+							onclick={(e) => e.stopPropagation()}
+						>
+							<MoreVertical class="size-4" />
+						</Popover.Trigger>
+						<Popover.Portal>
+							<Popover.Content align="end" side="bottom" class="w-44 p-1" onclick={(e) => e.stopPropagation()}>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+									onclick={(e) => handleDownload(e, shot)}
+								>
+									<Download class="size-4" />
+									Download
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+									onclick={(e) => handleOpenImage(e, shot)}
+								>
+									<Maximize2 class="size-4" />
+									Open image
+								</button>
+							</Popover.Content>
+						</Popover.Portal>
+					</Popover.Root>
 				</div>
 			{/each}
 		</div>

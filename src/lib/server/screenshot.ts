@@ -9,6 +9,7 @@ type ScreenshotRow = {
 	url: string;
 	fileName: string;
 	note: string | null;
+	favourite: boolean | null;
 	createdAt: Date;
 	deletedAt: Date | null;
 };
