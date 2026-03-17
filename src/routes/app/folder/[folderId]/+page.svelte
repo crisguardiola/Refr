@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Download, Heart, Maximize2, MoreVertical, Pencil, Settings, Trash2 } from '@lucide/svelte';
+	import { Download, Heart, Maximize2, MoreVertical, Pencil, Settings, Trash2, Upload } from '@lucide/svelte';
 	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -12,6 +12,7 @@
 	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
+	import { getZoomColumnsClass } from '$lib/thumbnail-zoom.js';
 	import UploadPreviewSheet from '$lib/components/app/UploadPreviewSheet.svelte';
 	import type { PageData } from './$types';
 
@@ -33,6 +34,7 @@
 	}>('selectedScreenshot');
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
+	const zoomStore = getContext<import('svelte/store').Writable<number>>('thumbnailZoom');
 
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
 
@@ -129,6 +131,14 @@
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived(data.folder?.id ?? null);
+	let zoomLevel = $state(50);
+	$effect(() => {
+		if (!zoomStore) return;
+		return zoomStore.subscribe((v) => {
+			zoomLevel = v;
+		});
+	});
+	const zoomColumnsClass = $derived(getZoomColumnsClass(zoomLevel));
 	const folderName = $derived(data.folder?.name ?? '');
 	let menuOpenForId = $state<number | null>(null);
 	let editFolderOpen = $state(false);
@@ -204,9 +214,10 @@
 />
 <div class="flex flex-1 flex-col gap-6">
 	{#if folderName}
-		<div class="flex items-center gap-2">
-			<h1 class="text-2xl font-semibold tracking-tight">{folderName}</h1>
-			<Popover.Root bind:open={folderMenuOpen}>
+		<div class="flex items-center justify-between gap-4">
+			<div class="flex items-center gap-2 min-w-0">
+				<h1 class="text-2xl font-semibold tracking-tight truncate">{folderName}</h1>
+				<Popover.Root bind:open={folderMenuOpen}>
 				<Popover.Trigger
 					class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					aria-label="Folder options"
@@ -238,6 +249,19 @@
 					</button>
 				</Popover.Content>
 			</Popover.Root>
+			</div>
+			{#if !isEmpty}
+				<Button
+					variant="outline"
+					size="sm"
+					class="gap-2 shrink-0"
+					onclick={() => fileInput?.click()}
+					onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fileInput?.click())}
+				>
+					<Upload class="size-4" />
+					Upload
+				</Button>
+			{/if}
 		</div>
 
 		<Dialog.Root bind:open={editFolderOpen} onOpenChange={(o) => !o && (editFolderName = '')}>
@@ -326,23 +350,13 @@
 			ondrop={handleDrop}
 		/>
 	{:else}
-		<div class="flex flex-col gap-4">
-			<UploadDropZone
-				variant="add-more"
-				compact
-				addMoreLabel="Add screenshot"
-				addMoreSubtitle="Drop or click to upload"
-				dropTitle="Drop to add"
-				dropSubtitle="Release to upload"
-				{isDragging}
-				onclick={() => fileInput?.click()}
-				onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fileInput?.click())}
-				ondragover={handleDragOver}
-				ondragleave={handleDragLeave}
-				ondrop={handleDrop}
-				class="mb-0"
-			/>
-			<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
+		<div
+			class="flex flex-col gap-4 min-h-0"
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+		>
+			<div class="gap-4 {zoomColumnsClass}">
 			{#each screenshots as shot (shot.id)}
 				<div
 					role="listitem"
@@ -416,7 +430,7 @@
 					</Popover.Root>
 				</div>
 			{/each}
-		</div>
+			</div>
 		</div>
 	{/if}
 

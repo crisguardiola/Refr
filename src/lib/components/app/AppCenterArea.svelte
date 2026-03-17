@@ -22,6 +22,10 @@
 		favouritesOnly: false
 	});
 	setContext('screenshotFilters', filterStore);
+
+	/** Zoom level 0–100: 0 = smallest thumbnails (8 cols), 100 = biggest (2 cols) */
+	const thumbnailZoomStore = writable(50);
+	setContext('thumbnailZoom', thumbnailZoomStore);
 </script>
 
 <div
@@ -33,6 +37,7 @@
 			{tags}
 			{tagCounts}
 			{filterStore}
+			{thumbnailZoomStore}
 		/>
 	</div>
 	{@render children?.()}

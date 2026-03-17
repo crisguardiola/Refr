@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
+	import { getZoomColumnsClass } from '$lib/thumbnail-zoom.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -27,6 +28,7 @@
 	}>('selectedScreenshot');
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
+	const zoomStore = getContext<import('svelte/store').Writable<number>>('thumbnailZoom');
 
 	const rawScreenshots = $derived(data.screenshots ?? []);
 	let filterState = $state<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>({
@@ -45,6 +47,14 @@
 	);
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
+	let zoomLevel = $state(50);
+	$effect(() => {
+		if (!zoomStore) return;
+		return zoomStore.subscribe((v) => {
+			zoomLevel = v;
+		});
+	});
+	const zoomColumnsClass = $derived(getZoomColumnsClass(zoomLevel));
 	let menuOpenForId = $state<number | null>(null);
 
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
@@ -115,7 +125,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
+		<div class="gap-4 {zoomColumnsClass}">
 			{#each screenshots as shot (shot.id)}
 				<div
 					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted {selected?.id === shot.id

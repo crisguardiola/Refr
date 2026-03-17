@@ -18,11 +18,13 @@
 	let {
 		tags = [],
 		tagCounts = {},
-		filterStore
+		filterStore,
+		thumbnailZoomStore
 	}: {
 		tags?: Tag[];
 		tagCounts?: Record<number, number>;
 		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>;
+		thumbnailZoomStore: Writable<number>;
 	} = $props();
 
 	let filterOpen = $state(false);
@@ -346,6 +348,19 @@
 				Clear
 			</Button>
 		{/if}
+		<div class="flex items-center gap-2 shrink-0" role="group" aria-label="Thumbnail zoom">
+			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">−</span>
+			<input
+				type="range"
+				min="0"
+				max="100"
+				value={$thumbnailZoomStore}
+				oninput={(e) => thumbnailZoomStore.set(Number((e.target as HTMLInputElement).value))}
+				class="h-1 w-24 min-w-0 cursor-pointer appearance-none rounded-full bg-muted accent-primary [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-colors [&::-webkit-slider-thumb]:hover:bg-primary/90 [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-primary"
+				aria-label="Zoom thumbnails"
+			/>
+			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">+</span>
+		</div>
 	</div>
 	{#if selectedTags.length > 0 || filter.favouritesOnly}
 		<div class="flex flex-wrap items-center gap-2">
