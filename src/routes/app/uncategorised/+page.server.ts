@@ -164,7 +164,12 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (err) {
 			console.error('Upload error:', err);
-			const message = err instanceof Error ? err.message : String(err);
+			const message =
+				err instanceof Error
+					? err.message
+					: err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+						? (err as { message: string }).message
+						: String(err);
 			return { success: false, error: `Upload failed: ${message}` };
 		}
 	}
