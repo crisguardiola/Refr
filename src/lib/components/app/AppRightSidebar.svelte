@@ -247,7 +247,7 @@
 
 <aside
 	class={cn(
-		'flex w-64 shrink-0 flex-col overflow-auto border-s border-border bg-background p-4',
+		'flex h-full w-64 shrink-0 flex-col overflow-auto border-s border-border bg-background p-4',
 		'sm:w-72 lg:w-80'
 	)}
 	data-slot="app-right-sidebar"
@@ -513,7 +513,7 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
+		<div class="flex min-h-full flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
 			<ImageIcon class="size-12 text-muted-foreground" aria-hidden="true" />
 			<p class="text-muted-foreground text-sm">Select a screenshot to view details</p>
 		</div>
