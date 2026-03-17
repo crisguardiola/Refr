@@ -51,9 +51,9 @@ When adding a new screenshot users will be able to:
 - Assign to an existing project folder, create a new folder and assign or leave it unassigned. (core)
 - Contextualise by adding a note when saving (core)
 - Add tags the image by UI type, color, and pattern (core) 
-    Categories: 
+    # Categories: 
         AI, Business, Collaboration, Communication, CRM, Crypto & Web3, Developer Tools, Education, Entertainment, Finance, Food & Drink, Graphics & Design, Jobs & Recruitment, Lifestyle, Maps & Navigation, Medical, Music & Audio, News, Photo & Video, Productivity, Real Estate, Reference, Shopping, Social Networking, Sports, Travel & Transportation, Utilities
-    Screens:
+    # Screens:
         - Utility: Audio Player, Audio & Video Recorder, Browser, Calendar, Call, Camera & Scanner, Chat Bot, Date & Time, Dynamic Island, Filters & Stickers, Live Activities, Location & Address, Map, Media Editor, Reminder, Timeline & History, Timer & Clock, Video Player, Widgets
         - Misc: Confetti, Dark Mode, Misc
         - Content: Article Detail, Augmented Reality, Browse & Discover, Class & Lesson Detail, Emails & Messages, Event Detail, Goal & Task, Home, News Feed, Note Detail, Other Content, Post Detail, Product Detail, Quiz, Recipe Detail, Song & Podcast Detail, Stories, TV Show & Movie Detail
@@ -65,7 +65,7 @@ When adding a new screenshot users will be able to:
         - Social: Achievements & Awards, Chat Detail, Comments, Followers & Following, Groups & Community, Invite Teammates, Leaderboard, Notifications, Reviews & Ratings, Social Feed, User / Group Profile
         New User Experience: Account Setup, Guided Tour & Tutorial, Splash Screen, Signup, Verification, Welcome & Get Started
         - Account Management: Delete & Deactivate Account, Forgot Password, Login, My Account & Profile, Settings & Preferences
-    UI Elements:
+    # UI Elements:
         - Control: Accordion, Button, Checkbox, Color Picker, Date Picker, Floating Action Button, Radio Button, Rating Control, Search Bar, Segmented Control, Slider, Stepper, Switch, Tab, Text Field, Tile, Time Picker
         - View: Badge, Banner, Card, Carousel, Chip, Divider, Gallery, Loading Indicator, Map Pin, Progress Indicator, Side Navigation, Skeleton, Stacked List, Status Dot, Tab Bar, Table, Toolbar, Top Navigation Bar
         - Overlay: Action Sheet, Bottom Sheet, Coach Marks, Dialog, Drawer, Dropdown Menu, Full-Screen Overlay, Toast, Tooltip
