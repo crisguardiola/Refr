@@ -134,11 +134,13 @@
 		</Dialog.Header>
 		{#if previewUrl}
 			<div class="flex flex-1 flex-col gap-4 overflow-auto px-4">
-				<img
-					src={previewUrl}
-					alt={fileName}
-					class="max-h-48 w-full rounded-lg border border-border object-contain bg-muted"
-				/>
+				<div class="aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted">
+					<img
+						src={previewUrl}
+						alt={fileName}
+						class="size-full object-cover"
+					/>
+				</div>
 
 				<div class="space-y-2">
 					<label for="folder-select" class="text-sm font-medium">Folder</label>

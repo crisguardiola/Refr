@@ -6,7 +6,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
-	import { getZoomColumnsClass } from '$lib/thumbnail-zoom.js';
+	import { groupScreenshotsByMonth } from '$lib/group-screenshots-by-month.js';
+	import { getColumnWidthPx } from '$lib/thumbnail-zoom.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -45,6 +46,7 @@
 	const screenshots = $derived(
 		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds, filterState.favouritesOnly)
 	);
+	const screenshotsByMonth = $derived(groupScreenshotsByMonth(screenshots));
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 	let zoomLevel = $state(50);
@@ -54,7 +56,6 @@
 			zoomLevel = v;
 		});
 	});
-	const zoomColumnsClass = $derived(getZoomColumnsClass(zoomLevel));
 	let menuOpenForId = $state<number | null>(null);
 
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
@@ -125,16 +126,23 @@
 			</div>
 		</div>
 	{:else}
-		<div class="gap-4 {zoomColumnsClass}">
-			{#each screenshots as shot (shot.id)}
+		<div class="flex flex-col gap-6">
+			{#each screenshotsByMonth as { month, screenshots: monthShots }}
+				<section class="space-y-4">
+					<h2 class="text-sm font-medium text-muted-foreground">{month}</h2>
+					<div
+						class="gap-4 [column-fill:balance]"
+						style="column-width: {getColumnWidthPx(zoomLevel)}px"
+					>
+					{#each monthShots as shot (shot.id)}
 				<div
-					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted {selected?.id === shot.id
+					class="group relative mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted {selected?.id === shot.id
 						? 'border-2 border-primary'
 						: 'border border-border'}"
 				>
 					<button
 						type="button"
-						class="block w-full text-left"
+						class="block w-full aspect-square overflow-hidden text-left"
 						onclick={() => selectedCtx?.setSelected(selected?.id === shot.id ? null : shot)}
 						ondblclick={(e) => {
 							e.preventDefault();
@@ -145,7 +153,10 @@
 						<img
 							src={cloudinaryUrl(shot.url, 'thumbnail')}
 							alt={shot.fileName}
-							class="w-full object-contain transition-transform group-hover:scale-105 bg-muted/50"
+							width={400}
+							height={400}
+							loading="lazy"
+							class="size-full object-cover transition-transform group-hover:scale-105 bg-muted/50"
 						/>
 					</button>
 					<Button
@@ -195,6 +206,9 @@
 						</Popover.Portal>
 					</Popover.Root>
 				</div>
+					{/each}
+					</div>
+				</section>
 			{/each}
 		</div>
 	{/if}

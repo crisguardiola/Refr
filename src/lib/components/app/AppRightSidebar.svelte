@@ -256,11 +256,13 @@
 		<div class="flex flex-col gap-6">
 			<div class="space-y-2">
 				<h3 class="text-sm font-semibold">Details</h3>
-				<img
-					src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
-					alt={selectedScreenshot.fileName}
-					class="w-full max-h-48 rounded-lg border border-border object-contain bg-muted/30"
-				/>
+				<div class="aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30">
+					<img
+						src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
+						alt={selectedScreenshot.fileName}
+						class="size-full object-cover"
+					/>
+				</div>
 			</div>
 			<dl class="space-y-3 text-sm">
 				<div>
