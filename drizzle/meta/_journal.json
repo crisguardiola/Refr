@@ -64,6 +64,20 @@
       "when": 1773613813671,
       "tag": "0008_white_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773614000000,
+      "tag": "0009_add_screen_dimension",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1773614100000,
+      "tag": "0010_seed_screen_tags",
+      "breakpoints": true
     }
   ]
 }

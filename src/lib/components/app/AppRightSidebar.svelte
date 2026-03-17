@@ -40,23 +40,25 @@
 	}>('selectedScreenshot');
 
 	let folderId = $state<string>('');
-	let addTagOpen = $state(false);
+	let addTagOpenFor = $state<'screen' | 'ui' | null>(null);
 	let tagSearchQuery = $state('');
 	let permanentDeleteOpen = $state(false);
 	let isSaving = $state(false);
 	let isSavingDetails = $state(false);
 	let addTagRef: HTMLDivElement;
-	let addTagTriggerRef: HTMLButtonElement;
+	let addScreenTriggerRef: HTMLButtonElement;
+	let addUiTriggerRef: HTMLButtonElement;
 	let tagDropdownStyle = $state<{ top: string; left: string; width: string } | null>(null);
 	let localFileName = $state('');
 	let localNote = $state('');
 
 	$effect(() => {
-		if (!addTagOpen) return;
+		if (!addTagOpenFor) return;
 		const handler = (e: MouseEvent) => {
-			if (addTagRef && !addTagRef.contains(e.target as Node)) {
-				addTagOpen = false;
-			}
+			const target = e.target as Node;
+			if (addTagRef?.contains(target)) return;
+			if (addScreenTriggerRef?.contains(target) || addUiTriggerRef?.contains(target)) return;
+			addTagOpenFor = null;
 		};
 		const t = setTimeout(() => document.addEventListener('click', handler), 0);
 		return () => {
@@ -66,17 +68,22 @@
 	});
 
 	$effect(() => {
-		if (!addTagOpen) tagSearchQuery = '';
+		if (!addTagOpenFor) tagSearchQuery = '';
 	});
 
 	$effect(() => {
-		if (!addTagOpen || !addTagTriggerRef) {
+		if (!addTagOpenFor) {
+			tagDropdownStyle = null;
+			return;
+		}
+		const triggerRef = addTagOpenFor === 'screen' ? addScreenTriggerRef : addUiTriggerRef;
+		if (!triggerRef) {
 			tagDropdownStyle = null;
 			return;
 		}
 		function updatePosition() {
-			if (!addTagTriggerRef) return;
-			const rect = addTagTriggerRef.getBoundingClientRect();
+			if (!triggerRef) return;
+			const rect = triggerRef.getBoundingClientRect();
 			const spaceBelow = window.innerHeight - rect.bottom;
 			const spaceAbove = rect.top;
 			const openUpward = spaceBelow < TAG_DROPDOWN_EST_HEIGHT && spaceAbove > spaceBelow;
@@ -118,13 +125,22 @@
 		tags.filter((t) => !selectedTagIds.has(t.id))
 	);
 
+	const availableToAddByDimension = $derived({
+		screen: availableToAdd.filter((t) => t.dimension === 'screen'),
+		ui: availableToAdd.filter((t) => t.dimension === 'ui_type' || t.dimension === 'color')
+	});
+
 	const filteredAvailableToAdd = $derived(
 		(() => {
 			const q = tagSearchQuery.trim().toLowerCase();
-			return q
-				? availableToAdd.filter((t) => t.label.toLowerCase().includes(q))
-				: availableToAdd;
+			const base = addTagOpenFor ? availableToAddByDimension[addTagOpenFor] : [];
+			return q ? base.filter((t) => t.label.toLowerCase().includes(q)) : base;
 		})()
+	);
+
+	const screenTags = $derived((selectedScreenshot?.tags ?? []).filter((t) => t.dimension === 'screen'));
+	const uiElementTags = $derived(
+		(selectedScreenshot?.tags ?? []).filter((t) => t.dimension === 'ui_type' || t.dimension === 'color')
 	);
 
 	const isTrashPage = $derived($page?.url?.pathname === '/app/trash');
@@ -179,7 +195,7 @@
 	}
 
 	function addTag(tagId: number) {
-		addTagOpen = false;
+		addTagOpenFor = null;
 		const next = [...selectedTagIds, tagId];
 		updateScreenshot({ folderId, tagIds: next });
 	}
@@ -321,10 +337,10 @@
 					</dd>
 				</div>
 				<div>
-					<dt class="text-muted-foreground">Tags</dt>
+					<dt class="text-muted-foreground">Screens</dt>
 					<dd class="mt-0.5">
 						<div class="flex flex-wrap items-center gap-1.5">
-							{#each selectedScreenshot.tags ?? [] as t (t.id)}
+							{#each screenTags as t (t.id)}
 								<span
 									class="inline-flex items-center gap-1 rounded-full bg-muted pl-2 pr-1 py-0.5 text-xs"
 								>
@@ -340,70 +356,116 @@
 									</button>
 								</span>
 							{/each}
-							<div class="relative" bind:this={addTagRef}>
+							<div class="relative">
 								<button
-									bind:this={addTagTriggerRef}
+									bind:this={addScreenTriggerRef}
 									type="button"
 									onclick={(e) => {
 										e.stopPropagation();
-										addTagOpen = !addTagOpen;
+										addTagOpenFor = addTagOpenFor === 'screen' ? null : 'screen';
 									}}
 									disabled={isSaving}
 									class="inline-flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 p-1 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
-									aria-label="Add tag"
+									aria-label="Add screen"
 								>
 									<Plus class="size-3.5 text-muted-foreground" />
 								</button>
-								{#if addTagOpen && tagDropdownStyle}
-									<div
-										class="fixed z-50 overflow-hidden rounded-md border border-border bg-background shadow-lg"
-										style="top: {tagDropdownStyle.top}; left: {tagDropdownStyle.left}; width: {tagDropdownStyle.width};"
-										role="listbox"
-									>
-										<div class="border-b border-border p-1.5">
-											<div class="relative">
-												<Search
-													class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-													aria-hidden="true"
-												/>
-												<Input
-													bind:value={tagSearchQuery}
-													type="search"
-													placeholder="Search tags..."
-													class="h-8 pl-7 text-xs"
-													aria-label="Search tags"
-												/>
-											</div>
-										</div>
-										<div class="max-h-40 overflow-auto py-1">
-											{#if availableToAdd.length === 0}
-												<p class="px-3 py-2 text-xs text-muted-foreground">All tags added</p>
-											{:else if filteredAvailableToAdd.length === 0}
-												<p class="px-3 py-2 text-xs text-muted-foreground">No matching tags</p>
-											{:else}
-												{#each filteredAvailableToAdd as t (t.id)}
-													<button
-														type="button"
-														role="option"
-														aria-selected="false"
-														onclick={() => addTag(t.id)}
-														class="block w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
-													>
-														{t.label}
-														<span class="text-muted-foreground text-xs"> — {t.dimension === 'ui_type' ? 'UI element' : t.dimension}</span>
-													</button>
-												{/each}
-											{/if}
-										</div>
-									</div>
-								{/if}
 							</div>
 						</div>
-						{#if (selectedScreenshot.tags?.length ?? 0) === 0 && !addTagOpen}
-							<p class="mt-1 text-xs text-muted-foreground">No tags. Click + to add.</p>
+						{#if screenTags.length === 0 && addTagOpenFor !== 'screen'}
+							<p class="mt-1 text-xs text-muted-foreground">No screens. Click + to add.</p>
 						{/if}
 					</dd>
 				</div>
+				<div>
+					<dt class="text-muted-foreground">UI Elements</dt>
+					<dd class="mt-0.5">
+						<div class="flex flex-wrap items-center gap-1.5">
+							{#each uiElementTags as t (t.id)}
+								<span
+									class="inline-flex items-center gap-1 rounded-full bg-muted pl-2 pr-1 py-0.5 text-xs"
+								>
+									{t.label}
+									<button
+										type="button"
+										onclick={() => removeTag(t.id)}
+										disabled={isSaving}
+										class="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+										aria-label="Remove {t.label}"
+									>
+										<X class="size-3" />
+									</button>
+								</span>
+							{/each}
+							<div class="relative">
+								<button
+									bind:this={addUiTriggerRef}
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										addTagOpenFor = addTagOpenFor === 'ui' ? null : 'ui';
+									}}
+									disabled={isSaving}
+									class="inline-flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 p-1 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
+									aria-label="Add UI element"
+								>
+									<Plus class="size-3.5 text-muted-foreground" />
+								</button>
+							</div>
+						</div>
+						{#if uiElementTags.length === 0 && addTagOpenFor !== 'ui'}
+							<p class="mt-1 text-xs text-muted-foreground">No UI elements. Click + to add.</p>
+						{/if}
+					</dd>
+				</div>
+				{#if addTagOpenFor && tagDropdownStyle}
+					<div
+						bind:this={addTagRef}
+						class="fixed z-50 overflow-hidden rounded-md border border-border bg-background shadow-lg"
+						style="top: {tagDropdownStyle.top}; left: {tagDropdownStyle.left}; width: {tagDropdownStyle.width};"
+						role="listbox"
+					>
+						<div class="border-b border-border p-1.5">
+							<div class="relative">
+								<Search
+									class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+									aria-hidden="true"
+								/>
+								<Input
+									bind:value={tagSearchQuery}
+									type="search"
+									placeholder={addTagOpenFor === 'screen' ? 'Search screens...' : 'Search UI elements...'}
+									class="h-8 pl-7 text-xs"
+									aria-label={addTagOpenFor === 'screen' ? 'Search screens' : 'Search UI elements'}
+								/>
+							</div>
+						</div>
+						<div class="max-h-40 overflow-auto py-1">
+							{#if availableToAddByDimension[addTagOpenFor].length === 0}
+								<p class="px-3 py-2 text-xs text-muted-foreground">
+									{addTagOpenFor === 'screen' ? 'All screens added' : 'All UI elements added'}
+								</p>
+							{:else if filteredAvailableToAdd.length === 0}
+								<p class="px-3 py-2 text-xs text-muted-foreground">
+									{addTagOpenFor === 'screen' ? 'No matching screens' : 'No matching UI elements'}
+								</p>
+							{:else}
+								{#each filteredAvailableToAdd as t (t.id)}
+									<button
+										type="button"
+										role="option"
+										aria-selected="false"
+										onclick={() => addTag(t.id)}
+										class="block w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+									>
+										{t.label}
+										<span class="text-muted-foreground text-xs"> — {t.dimension === 'ui_type' ? 'UI element' : t.dimension === 'screen' ? 'Screen' : t.dimension}</span>
+									</button>
+								{/each}
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</dl>
 			{#if isTrashPage}
 				<div class="flex flex-col gap-2">

@@ -3,7 +3,7 @@ import { pgTable, serial, integer, text, timestamp, primaryKey } from 'drizzle-o
 import { pgEnum } from 'drizzle-orm/pg-core';
 import { user } from './auth.schema';
 
-export const tagDimensionEnum = pgEnum('tag_dimension', ['ui_type', 'color', 'pattern']);
+export const tagDimensionEnum = pgEnum('tag_dimension', ['ui_type', 'color', 'pattern', 'screen']);
 
 export const task = pgTable('task', {
 	id: serial('id').primaryKey(),

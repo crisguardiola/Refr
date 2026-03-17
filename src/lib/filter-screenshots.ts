@@ -1,5 +1,5 @@
 /**
- * Filter screenshots by search query (fileName, note, tag labels), selected tag IDs, and rating.
+ * Filter screenshots by search query (fileName, note, UI element labels), selected tag IDs, and rating.
  * Screenshot must match the search query, have ALL selected tags, and match the rating filter.
  */
 

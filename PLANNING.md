@@ -3,11 +3,11 @@ Screenshot import - Upload references via drag and drop on desktop or directly f
 Intention prompt - A one-line note captured at import to record the reason behind saving a reference
 Project organisation - Group references into projects to keep different work streams separate
 Collection view - A visual, masonry-style grid of all saved references with notes and ta
-Search & filters - Find any reference by keyword, color, tag, UI pattern, or project
+Search & filters - Find any reference by keyword, color, UI element, UI pattern, or project
 Rating - Rate assets for efficient organisation
 
 # Nice-to-have
-Auto-tagging - Automatic categorisation of each image by UI pattern, color palette, and interface type
+Auto-categorisation - Automatic categorisation of each image by UI pattern, color palette, and interface type
 Freehand annotation - Draw and mark up directly on top of a screenshot right after importing it
 Find Duplicates - Scan and Marge duplicates to save space
 
@@ -21,7 +21,7 @@ Cloud Sync Tools - Pair with cloud sync tools to manage and access the reference
 2. Import — Screenshot is dragged in or uploaded to Refr (core)
 3. Annotate — A canvas opens for optional freehand drawing on top of the image (nice-to-have)
 4. Contextualise — A one-line prompt asks if the user wants to add a note when saving (core)
-5. Process — AI automatically tags the image by UI type, color, and pattern (done by the user - core) (AI - nice-to-have) 
+5. Process — AI automatically categorises the image by UI type, color, and pattern (done by the user - core) (AI - nice-to-have) 
 6. Organise — Reference is assigned to a project and grouped by the user (core)
 7. Retrieve — Designer searches and filters the collection when they need it, they can copy or download the screenshot (core)
 
@@ -41,7 +41,7 @@ References are shown in a masonry grid layout. When a user selects an image, it 
 ## Right panel
 Appears when an image is selected in the content area. Displays the metadata and context associated with that reference, including:
 The intention note captured at import ("why did I save this?")
-Auto-generated tags (UI pattern, color palette, type)
+Auto-generated UI elements (UI pattern, color palette, type)
 The project or folder it belongs to
 Date saved
 Any freehand annotation drawn on the image
@@ -50,7 +50,7 @@ Any freehand annotation drawn on the image
 When adding a new screenshot users will be able to:
 - Assign to an existing project folder, create a new folder and assign or leave it unassigned. (core)
 - Contextualise by adding a note when saving (core)
-- Add tags the image by UI type, color, and pattern (core) 
+- Add UI elements to the image by UI type, color, and pattern (core) 
     # Categories: 
         AI, Business, Collaboration, Communication, CRM, Crypto & Web3, Developer Tools, Education, Entertainment, Finance, Food & Drink, Graphics & Design, Jobs & Recruitment, Lifestyle, Maps & Navigation, Medical, Music & Audio, News, Photo & Video, Productivity, Real Estate, Reference, Shopping, Social Networking, Sports, Travel & Transportation, Utilities
     # Screens:

@@ -58,7 +58,7 @@
 
 	const tagsByDimension = $derived(
 		(() => {
-			const map: Record<string, Tag[]> = { ui_type: [], color: [] };
+			const map: Record<string, Tag[]> = { screen: [], ui_type: [], color: [] };
 			for (const t of tags) {
 				if (map[t.dimension]) map[t.dimension].push(t);
 			}
@@ -201,11 +201,11 @@
 				</div>
 
 				<div class="space-y-3">
-					<p class="text-sm font-medium">Tags (optional)</p>
-					{#each ['ui_type', 'color'] as dim}
+					<p class="text-sm font-medium">UI Elements (optional)</p>
+					{#each ['screen', 'ui_type', 'color'] as dim}
 						{#if tagsByDimension[dim]?.length}
 							<div class="space-y-1.5">
-								<span class="text-xs text-muted-foreground capitalize">{dim === 'ui_type' ? 'UI element' : dim}</span>
+								<span class="text-xs text-muted-foreground capitalize">{dim === 'ui_type' ? 'UI element' : dim === 'screen' ? 'Screen' : dim}</span>
 								<div class="flex flex-wrap gap-2">
 									{#each tagsByDimension[dim] as t (t.id)}
 										<button

@@ -55,7 +55,7 @@
 
 			<p class="text-muted-foreground text-lg leading-relaxed">
 				Stop losing inspiration in your camera roll. Refr gives every screenshot a dedicated space,
-				with context, tags, and the reason you saved it.
+				with context, UI elements, and the reason you saved it.
 			</p>
 
 			<div class="flex flex-col gap-4 sm:flex-row sm:justify-center">
@@ -95,11 +95,11 @@
 						<div class="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
 							<Sparkles class="size-5" />
 						</div>
-						<Card.Title class="text-lg">Auto-tagged instantly</Card.Title>
+						<Card.Title class="text-lg">Categorised instantly</Card.Title>
 					</Card.Header>
 					<Card.Content>
 						<Card.Description class="text-base leading-relaxed">
-							AI reads each screenshot and tags it by UI pattern, color palette, and type, so your
+							AI reads each screenshot and categorises it by UI pattern, color palette, and type, so your
 							collection organises itself as you build it.
 						</Card.Description>
 					</Card.Content>
@@ -218,7 +218,7 @@
 					</Card.Header>
 					<Card.Content class="p-4 pt-2">
 						<Card.Description class="text-sm leading-relaxed">
-							Masonry grid with tags and notes visible at a glance.
+							Masonry grid with UI elements and notes visible at a glance.
 						</Card.Description>
 					</Card.Content>
 				</Card.Root>
@@ -244,7 +244,7 @@
 				</Card.Root>
 				<Card.Root>
 					<Card.Header class="p-4 pb-0">
-						<Card.Title class="text-base">Auto-tagging</Card.Title>
+						<Card.Title class="text-base">Auto-categorisation</Card.Title>
 					</Card.Header>
 					<Card.Content class="p-4 pt-2">
 						<Card.Description class="text-sm leading-relaxed">
