@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Download, ImageIcon } from '@lucide/svelte';
+	import { Download, Pencil, Settings, Trash2 } from '@lucide/svelte';
 	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
-	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
 	import UploadPreviewSheet from '$lib/components/app/UploadPreviewSheet.svelte';
@@ -122,6 +127,16 @@
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived(data.folder?.id ?? null);
+	const folderName = $derived(data.folder?.name ?? '');
+	let editFolderOpen = $state(false);
+	let deleteFolderOpen = $state(false);
+	let folderMenuOpen = $state(false);
+	let editFolderName = $state('');
+
+	function openEditFolder() {
+		editFolderName = folderName;
+		editFolderOpen = true;
+	}
 
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
 		e.preventDefault();
@@ -151,6 +166,114 @@
 	aria-label="Upload screenshot"
 />
 <div class="flex flex-1 flex-col gap-6">
+	{#if folderName}
+		<div class="flex items-center gap-2">
+			<h1 class="text-2xl font-semibold tracking-tight">{folderName}</h1>
+			<Popover.Root bind:open={folderMenuOpen}>
+				<Popover.Trigger
+					class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					aria-label="Folder options"
+				>
+					<Settings class="size-4" />
+				</Popover.Trigger>
+				<Popover.Content align="start" class="w-48 p-1">
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+						onclick={() => {
+							folderMenuOpen = false;
+							openEditFolder();
+						}}
+					>
+						<Pencil class="size-4" />
+						Edit
+					</button>
+					<button
+						type="button"
+						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+						onclick={() => {
+							folderMenuOpen = false;
+							deleteFolderOpen = true;
+						}}
+					>
+						<Trash2 class="size-4" />
+						Delete
+					</button>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+
+		<Dialog.Root bind:open={editFolderOpen} onOpenChange={(o) => !o && (editFolderName = '')}>
+			<Dialog.Content class="w-80 max-w-[calc(100%-2rem)]">
+				<Dialog.Header>
+					<Dialog.Title>Rename folder</Dialog.Title>
+					<Dialog.Description>Enter a new name for this folder.</Dialog.Description>
+				</Dialog.Header>
+				<form
+					method="post"
+					action="?/updateFolder"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success' && result.data?.success) {
+								editFolderOpen = false;
+								await invalidateAll();
+							}
+						};
+					}}
+					class="flex flex-col gap-4"
+				>
+					<div class="space-y-2">
+						<label for="edit-folder-name" class="text-sm font-medium">Folder name</label>
+						<Input
+							id="edit-folder-name"
+							name="name"
+							bind:value={editFolderName}
+							placeholder="e.g. UI inspiration"
+							class="w-full"
+							required
+						/>
+					</div>
+					<Dialog.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+						<Button type="submit">Save</Button>
+						<Button type="button" variant="outline" onclick={() => (editFolderOpen = false)}>
+							Cancel
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+
+		<Dialog.Root bind:open={deleteFolderOpen}>
+			<Dialog.Content class="w-80 max-w-[calc(100%-2rem)]">
+				<Dialog.Header>
+					<Dialog.Title>Delete folder</Dialog.Title>
+					<Dialog.Description>
+						This will move all screenshots to Uncategorised. The folder will be permanently deleted.
+					</Dialog.Description>
+				</Dialog.Header>
+				<form
+					method="post"
+					action="?/deleteFolder"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'redirect') {
+								deleteFolderOpen = false;
+								await invalidateAll();
+							}
+						};
+					}}
+					class="flex flex-col gap-4"
+				>
+					<Dialog.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+						<Button type="submit" variant="destructive">Delete</Button>
+						<Button type="button" variant="outline" onclick={() => (deleteFolderOpen = false)}>
+							Cancel
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+	{/if}
 	{#if isEmpty}
 		<UploadDropZone
 			variant="empty"

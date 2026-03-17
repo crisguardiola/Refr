@@ -197,5 +197,49 @@ export const actions: Actions = {
 						: String(err);
 			return { success: false, error: `Upload failed: ${message}` };
 		}
+	},
+
+	updateFolder: async (event) => {
+		const session = await auth.api.getSession({ headers: event.request.headers });
+		if (!session?.user) {
+			return { success: false, error: 'You must be logged in' };
+		}
+		const folderId = parseInt(event.params.folderId, 10);
+		if (Number.isNaN(folderId)) {
+			return { success: false, error: 'Invalid folder' };
+		}
+		const formData = await event.request.formData();
+		const name = (formData.get('name') as string)?.trim();
+		if (!name) {
+			return { success: false, error: 'Folder name is required' };
+		}
+		const [updated] = await db
+			.update(folder)
+			.set({ name })
+			.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)))
+			.returning({ id: folder.id });
+		if (!updated) {
+			return { success: false, error: 'Folder not found' };
+		}
+		return { success: true };
+	},
+
+	deleteFolder: async (event) => {
+		const session = await auth.api.getSession({ headers: event.request.headers });
+		if (!session?.user) {
+			return { success: false, error: 'You must be logged in' };
+		}
+		const folderId = parseInt(event.params.folderId, 10);
+		if (Number.isNaN(folderId)) {
+			return { success: false, error: 'Invalid folder' };
+		}
+		await db
+			.update(screenshot)
+			.set({ folderId: null })
+			.where(and(eq(screenshot.folderId, folderId), eq(screenshot.userId, session.user.id)));
+		await db
+			.delete(folder)
+			.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)));
+		return redirect(302, '/app');
 	}
 };

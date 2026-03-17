@@ -1,20 +1,20 @@
 # Core features
-Screenshot import - Upload references via drag and drop on desktop or directly from the phone camera roll
-Intention prompt - A one-line note captured at import to record the reason behind saving a reference
-Project organisation - Group references into projects to keep different work streams separate
-Collection view - A visual, masonry-style grid of all saved references with notes and ta
-Search & filters - Find any reference by keyword, color, UI element, UI pattern, or project
-Rating - Rate assets for efficient organisation
+- Screenshot import - Upload references via drag and drop on desktop or directly from the phone camera roll
+- Intention prompt - A one-line note captured at import to record the reason behind saving a reference
+- Project organisation - Group references into projects to keep different work streams separate
+- Collection view - A visual, masonry-style grid of all saved references with notes and ta
+- Search & filters - Find any reference by keyword, color, UI element, UI pattern, or project
+- Rating - Rate assets for efficient organisation
 
 # Nice-to-have
-Auto-categorisation - Automatic categorisation of each image by UI pattern, color palette, and interface type
-Freehand annotation - Draw and mark up directly on top of a screenshot right after importing it
-Find Duplicates - Scan and Marge duplicates to save space
+- Auto-categorisation - Automatic categorisation of each image by UI pattern, color palette, and interface type
+- Freehand annotation - Draw and mark up directly on top of a screenshot right after importing it
+- Find Duplicates - Scan and Marge duplicates to save space
 
 # Not in Scope
-Colour Search - Swiftly find references within the same colour palette to quickly surface visually consistent inspiration
-Plugins - Extend Refr's workflow with integrations for Figma, Notion, and Slack to bring references directly into these tools
-Cloud Sync Tools - Pair with cloud sync tools to manage and access the reference collection seamlessly across devices
+- Colour Search - Swiftly find references within the same colour palette to quickly surface visually consistent inspiration
+- Plugins - Extend Refr's workflow with integrations for Figma, Notion, and Slack to bring references directly into these tools
+- Cloud Sync Tools - Pair with cloud sync tools to manage and access the reference collection seamlessly across devices
 
 # User flow (green path)
 1. Capture — Designer takes a screenshot naturally on their device from mobile/computer. (core)

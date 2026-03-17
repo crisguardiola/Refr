@@ -62,6 +62,7 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
+	<h1 class="text-2xl font-semibold tracking-tight">Trash</h1>
 	{#if isEmpty}
 		<div
 			class="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-muted-foreground/25 py-16"

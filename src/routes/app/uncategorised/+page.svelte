@@ -151,6 +151,7 @@
 	aria-label="Upload screenshot"
 />
 <div class="flex flex-1 flex-col gap-6">
+	<h1 class="text-2xl font-semibold tracking-tight">Uncategorised</h1>
 	{#if isEmpty}
 		<UploadDropZone
 			variant="empty"

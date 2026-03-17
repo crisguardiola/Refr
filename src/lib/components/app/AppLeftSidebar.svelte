@@ -69,9 +69,6 @@
 	<Sidebar.Header />
 	<Sidebar.Content>
 		<Sidebar.Group>
-			<Sidebar.GroupLabel class="px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-				Default
-			</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					<Sidebar.MenuItem>
@@ -123,7 +120,7 @@
 
 		<Sidebar.Group>
 			<Sidebar.GroupLabel class="px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-				Custom folders
+				Folders
 			</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
