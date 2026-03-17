@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { Download, Trash2 } from '@lucide/svelte';
+	import { Download, Heart } from '@lucide/svelte';
+	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -14,7 +15,6 @@
 		fileName: string;
 		note?: string | null;
 		createdAt: Date | string;
-		deletedAt: Date | string | null;
 		tags?: { id: number }[];
 	};
 	const selectedCtx = getContext<{
@@ -24,7 +24,6 @@
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
 
-	const rawScreenshots = $derived(data.screenshots ?? []);
 	let filterState = $state<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>({
 		searchQuery: '',
 		selectedTagIds: [],
@@ -36,11 +35,23 @@
 			filterState = v;
 		});
 	});
+
+	const rawScreenshots = $derived(data.screenshots ?? []);
 	const screenshots = $derived(
-		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds, filterState.favouritesOnly)
+		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds, false)
 	);
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
+
+	function handleScreenshotDragStart(e: DragEvent, shot: { id: number; tags?: { id: number }[] }) {
+		if (!e.dataTransfer) return;
+		const data: ScreenshotDragData = {
+			screenshotId: shot.id,
+			tagIds: (shot.tags ?? []).map((t) => t.id)
+		};
+		e.dataTransfer.setData(SCREENSHOT_DRAG_TYPE, JSON.stringify(data));
+		e.dataTransfer.effectAllowed = 'move';
+	}
 
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
 		e.preventDefault();
@@ -62,30 +73,29 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Trash</h1>
+	<h1 class="text-2xl font-semibold tracking-tight">Favourites</h1>
 	{#if isEmpty}
-		<div
-			class="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-muted-foreground/25 py-16"
-		>
-			<Trash2 class="size-12 text-muted-foreground" aria-hidden="true" />
-			<div class="text-center space-y-1">
-				<p class="text-sm font-medium">Trash is empty</p>
-				<p class="text-muted-foreground text-xs">
-					Deleted screenshots will appear here. You can restore them before permanent removal.
-				</p>
-			</div>
+		<div class="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-muted/30 py-16 text-center">
+			<Heart class="size-12 text-muted-foreground/50" aria-hidden="true" />
+			<p class="text-muted-foreground text-sm">No favourited screenshots</p>
+			<p class="text-muted-foreground/80 text-xs max-w-sm">
+				Click the heart on any screenshot in All or a folder to add it here.
+			</p>
 		</div>
 	{:else}
 		<div class="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
 			{#each screenshots as shot (shot.id)}
 				<div
-					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted {selected?.id === shot.id
+					role="listitem"
+					class="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted shadow-sm transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing {selected?.id === shot.id
 						? 'border-2 border-primary'
 						: 'border border-border'}"
+					draggable="true"
+					ondragstart={(e) => handleScreenshotDragStart(e, shot)}
 				>
 					<button
 						type="button"
-						class="block w-full text-left"
+						class="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
 						onclick={() => selectedCtx?.setSelected(selected?.id === shot.id ? null : shot)}
 						ondblclick={(e) => {
 							e.preventDefault();

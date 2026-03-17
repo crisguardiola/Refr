@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Search, Filter, X, Star } from '@lucide/svelte';
+	import { Search, Filter, X, Heart } from '@lucide/svelte';
 	import type { Writable } from 'svelte/store';
 
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
 
-	const RATING_MAX = 5;
 	const SEARCH_DEBOUNCE_MS = 200;
 	const TAG_SEARCH_THRESHOLD = 6;
 	const DIMENSION_LABELS: Record<string, string> = {
@@ -23,18 +22,18 @@
 	}: {
 		tags?: Tag[];
 		tagCounts?: Record<number, number>;
-		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>;
+		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>;
 	} = $props();
 
 	let filterOpen = $state(false);
 	let screensFilterOpen = $state(false);
-	let ratingFilterOpen = $state(false);
+	let favouritesFilterOpen = $state(false);
 	let searchInputValue = $state('');
 	let tagSearchQuery = $state('');
 	let screenSearchQuery = $state('');
 	let tagsRef: HTMLDetailsElement;
 	let screensRef: HTMLDetailsElement;
-	let ratingRef: HTMLDetailsElement;
+	let favouritesRef: HTMLDetailsElement;
 
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -73,10 +72,10 @@
 	});
 
 	$effect(() => {
-		if (!ratingFilterOpen) return;
+		if (!favouritesFilterOpen) return;
 		function handleClickOutside(e: MouseEvent) {
-			if (ratingRef && !ratingRef.contains(e.target as Node)) {
-				ratingFilterOpen = false;
+			if (favouritesRef && !favouritesRef.contains(e.target as Node)) {
+				favouritesFilterOpen = false;
 			}
 		}
 		document.addEventListener('click', handleClickOutside);
@@ -100,24 +99,24 @@
 		});
 	}
 
-	function setRatingFilter(rating: number | null) {
-		filterStore.update((prev) => ({ ...prev, selectedRating: rating }));
-		ratingFilterOpen = false;
+	function toggleFavouritesFilter() {
+		filterStore.update((prev) => ({ ...prev, favouritesOnly: !prev.favouritesOnly }));
+		favouritesFilterOpen = false;
 	}
 
 	function clearFilters() {
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = null;
-		filterStore.set({ searchQuery: '', selectedTagIds: [], selectedRating: null });
+		filterStore.set({ searchQuery: '', selectedTagIds: [], favouritesOnly: false });
 		searchInputValue = '';
 		filterOpen = false;
 		screensFilterOpen = false;
-		ratingFilterOpen = false;
+		favouritesFilterOpen = false;
 	}
 
 	const filter = $derived($filterStore);
 	const hasActiveFilters = $derived(
-		filter.searchQuery.trim() !== '' || filter.selectedTagIds.length > 0 || filter.selectedRating != null
+		filter.searchQuery.trim() !== '' || filter.selectedTagIds.length > 0 || filter.favouritesOnly
 	);
 	const selectedTags = $derived(tags.filter((t) => filter.selectedTagIds.includes(t.id)));
 
@@ -302,50 +301,38 @@
 			</div>
 		</details>
 		<details
-			bind:this={ratingRef}
-			bind:open={ratingFilterOpen}
+			bind:this={favouritesRef}
+			bind:open={favouritesFilterOpen}
 			class="group"
 		>
 			<summary
 				class="flex cursor-pointer list-none items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-				aria-label="Filter by rating"
+				aria-label="Filter by favourites"
 			>
-				<Star class="size-4 text-muted-foreground" />
-				<span>Rating</span>
-				{#if filter.selectedRating != null}
+				<Heart
+					class="size-4 transition-colors {filter.favouritesOnly ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground'}"
+				/>
+				<span>Favourites</span>
+				{#if filter.favouritesOnly}
 					<span
 						class="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
 					>
-						{filter.selectedRating}★
+						On
 					</span>
 				{/if}
 			</summary>
 			<div
 				class="mt-2 rounded-lg border border-border bg-background p-3 shadow-md"
 			>
-				<div class="flex flex-wrap gap-2">
-					<button
-						type="button"
-						class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedRating === null
-							? 'border-primary bg-primary text-primary-foreground'
-							: 'border-input bg-muted/50 hover:bg-muted'}"
-						onclick={() => setRatingFilter(null)}
-					>
-						All
-					</button>
-					{#each Array(RATING_MAX) as _, i}
-						{@const value = i + 1}
-						<button
-							type="button"
-							class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedRating === value
-								? 'border-primary bg-primary text-primary-foreground'
-								: 'border-input bg-muted/50 hover:bg-muted'}"
-							onclick={() => setRatingFilter(value)}
-						>
-							{value}★
-						</button>
-					{/each}
-				</div>
+				<button
+					type="button"
+					class="w-full rounded-md border px-3 py-2 text-sm font-medium transition-colors {filter.favouritesOnly
+						? 'border-primary bg-primary text-primary-foreground'
+						: 'border-input bg-muted/50 hover:bg-muted'}"
+					onclick={toggleFavouritesFilter}
+				>
+					{filter.favouritesOnly ? 'Showing favourites only' : 'Show favourites only'}
+				</button>
 			</div>
 		</details>
 		{#if hasActiveFilters}
@@ -360,7 +347,7 @@
 			</Button>
 		{/if}
 	</div>
-	{#if selectedTags.length > 0 || filter.selectedRating != null}
+	{#if selectedTags.length > 0 || filter.favouritesOnly}
 		<div class="flex flex-wrap items-center gap-2">
 			<span class="text-muted-foreground text-xs">Filtering by:</span>
 			{#each selectedTags as tag (tag.id)}
@@ -378,16 +365,16 @@
 					</button>
 				</span>
 			{/each}
-			{#if filter.selectedRating != null}
+			{#if filter.favouritesOnly}
 				<span
 					class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
 				>
-					{filter.selectedRating}★
+					Favourites only
 					<button
 						type="button"
 						class="rounded-full hover:bg-primary/20"
-						onclick={() => setRatingFilter(null)}
-						aria-label="Remove rating filter"
+						onclick={() => filterStore.update((p) => ({ ...p, favouritesOnly: false }))}
+						aria-label="Remove favourites filter"
 					>
 						<X class="size-3" />
 					</button>

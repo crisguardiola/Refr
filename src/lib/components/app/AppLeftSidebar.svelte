@@ -9,18 +9,19 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { SCREENSHOT_DRAG_TYPE } from '$lib/move-screenshot.js';
 	import { moveScreenshot } from '$lib/move-screenshot.js';
-	import { Folder, FolderOpen, FolderPlus, Trash2 } from '@lucide/svelte';
+	import { Folder, FolderOpen, FolderPlus, Heart, Trash2 } from '@lucide/svelte';
 
 	let {
 		folders = [],
-		counts = { all: 0, uncategorised: 0, trash: 0 }
+		counts = { all: 0, uncategorised: 0, favourites: 0, trash: 0 }
 	}: {
 		folders?: { id: number; name: string; count: number }[];
-		counts?: { all: number; uncategorised: number; trash: number };
+		counts?: { all: number; uncategorised: number; favourites: number; trash: number };
 	} = $props();
 
 	const isAllSelected = $derived($page.url.pathname === '/app');
 	const isUncategorisedSelected = $derived($page.url.pathname === '/app/uncategorised');
+	const isFavouritesSelected = $derived($page.url.pathname === '/app/favourites');
 	const isTrashSelected = $derived($page.url.pathname === '/app/trash');
 	function isFolderSelected(id: number) {
 		return $page.url.pathname === `/app/folder/${id}`;
@@ -96,6 +97,17 @@
 							<span>Uncategorised</span>
 						</Sidebar.MenuButton>
 						<Sidebar.MenuBadge>{counts.uncategorised}</Sidebar.MenuBadge>
+					</Sidebar.MenuItem>
+					<Sidebar.MenuItem>
+						<Sidebar.MenuButton
+							isActive={isFavouritesSelected}
+							tooltipContent="Favourites"
+							onclick={() => goto('/app/favourites')}
+						>
+							<Heart class="size-4" />
+							<span>Favourites</span>
+						</Sidebar.MenuButton>
+						<Sidebar.MenuBadge>{counts.favourites ?? 0}</Sidebar.MenuBadge>
 					</Sidebar.MenuItem>
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton

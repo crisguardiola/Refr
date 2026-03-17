@@ -1,13 +1,13 @@
 /**
- * Filter screenshots by search query (fileName, note, UI element labels), selected tag IDs, and rating.
- * Screenshot must match the search query, have ALL selected tags, and match the rating filter.
+ * Filter screenshots by search query (fileName, note, UI element labels), selected tag IDs, and favourites.
+ * Screenshot must match the search query, have ALL selected tags, and match the favourites filter.
  */
 
 export type ScreenshotWithTags = {
 	id: number;
 	fileName: string;
 	note?: string | null;
-	rating?: number | null;
+	favourite?: boolean;
 	tags?: { id: number; label?: string }[];
 };
 
@@ -15,7 +15,7 @@ export function filterScreenshots<T extends ScreenshotWithTags>(
 	screenshots: T[],
 	searchQuery: string,
 	selectedTagIds: number[],
-	selectedRating: number | null = null
+	favouritesOnly: boolean = false
 ): T[] {
 	let result = screenshots;
 
@@ -39,8 +39,8 @@ export function filterScreenshots<T extends ScreenshotWithTags>(
 		});
 	}
 
-	if (selectedRating != null && selectedRating >= 1 && selectedRating <= 5) {
-		result = result.filter((s) => s.rating === selectedRating);
+	if (favouritesOnly) {
+		result = result.filter((s) => s.favourite === true);
 	}
 
 	return result;

@@ -30,7 +30,7 @@
 		setSelected: (s: Screenshot | null) => void;
 	}>('selectedScreenshot');
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
-	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }) => void) => () => void }>('screenshotFilters');
+	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
 
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
 
@@ -110,10 +110,10 @@
 	}
 
 	const rawScreenshots = $derived(data.screenshots ?? []);
-	let filterState = $state<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>({
+	let filterState = $state<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>({
 		searchQuery: '',
 		selectedTagIds: [],
-		selectedRating: null
+		favouritesOnly: false
 	});
 	$effect(() => {
 		if (!filterStore) return;
@@ -122,7 +122,7 @@
 		});
 	});
 	const screenshots = $derived(
-		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds, filterState.selectedRating)
+		filterScreenshots(rawScreenshots, filterState.searchQuery, filterState.selectedTagIds, filterState.favouritesOnly)
 	);
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);

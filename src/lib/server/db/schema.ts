@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, serial, integer, text, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, timestamp, primaryKey, boolean } from 'drizzle-orm/pg-core';
 import { pgEnum } from 'drizzle-orm/pg-core';
 import { user } from './auth.schema';
 
@@ -29,7 +29,7 @@ export const screenshot = pgTable('screenshot', {
 	url: text('url').notNull(),
 	fileName: text('file_name').notNull(),
 	note: text('note'),
-	rating: integer('rating'),
+	favourite: boolean('favourite').default(false),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	deletedAt: timestamp('deleted_at')
 });

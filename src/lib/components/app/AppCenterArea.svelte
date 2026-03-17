@@ -16,10 +16,10 @@
 		tagCounts?: Record<number, number>;
 	} = $props();
 
-	const filterStore = writable<{ searchQuery: string; selectedTagIds: number[]; selectedRating: number | null }>({
+	const filterStore = writable<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>({
 		searchQuery: '',
 		selectedTagIds: [],
-		selectedRating: null
+		favouritesOnly: false
 	});
 	setContext('screenshotFilters', filterStore);
 </script>

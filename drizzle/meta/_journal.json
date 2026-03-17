@@ -78,6 +78,13 @@
       "when": 1773614100000,
       "tag": "0010_seed_screen_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1773614200000,
+      "tag": "0011_rating_to_favourite",
+      "breakpoints": true
     }
   ]
 }

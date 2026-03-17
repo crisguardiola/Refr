@@ -10,7 +10,7 @@ export const load: LayoutServerLoad = async (event) => {
 	}
 	const userId = event.locals.user.id;
 
-	const [folders, tags, countAll, countUncategorised, countTrash, tagCountRows] = await Promise.all([
+	const [folders, tags, countAll, countUncategorised, countFavourites, countTrash, tagCountRows] = await Promise.all([
 		db.select().from(folder).where(eq(folder.userId, userId)).orderBy(asc(folder.createdAt)),
 		db.select().from(tag).orderBy(asc(tag.dimension), asc(tag.sortOrder)),
 		db.$count(
@@ -24,6 +24,10 @@ export const load: LayoutServerLoad = async (event) => {
 				isNull(screenshot.folderId),
 				isNull(screenshot.deletedAt)
 			)
+		),
+		db.$count(
+			screenshot,
+			and(eq(screenshot.userId, userId), eq(screenshot.favourite, true), isNull(screenshot.deletedAt))
 		),
 		db.$count(
 			screenshot,
@@ -63,6 +67,6 @@ export const load: LayoutServerLoad = async (event) => {
 		folders: foldersWithCount,
 		tags,
 		tagCounts,
-		counts: { all: countAll, uncategorised: countUncategorised, trash: countTrash }
+		counts: { all: countAll, uncategorised: countUncategorised, favourites: countFavourites, trash: countTrash }
 	};
 };
