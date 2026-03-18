@@ -33,12 +33,14 @@
 		selectedScreenshot = null,
 		screenshots = [],
 		folders = [],
-		tags = []
+		tags = [],
+		showAnnotationsStore
 	}: {
 		selectedScreenshot?: Screenshot | null;
 		screenshots?: Screenshot[];
 		folders?: Folder[];
 		tags?: Tag[];
+		showAnnotationsStore?: import('svelte/store').Writable<Record<number, boolean>>;
 	} = $props();
 
 	const selectedCtx = getContext<{
@@ -59,7 +61,11 @@
 	let tagDropdownStyle = $state<{ top: string; left: string; width: string } | null>(null);
 	let localFileName = $state('');
 	let localNote = $state('');
-	let showAnnotations = $state(true);
+	let showAnnotations = $derived(
+		showAnnotationsStore && selectedScreenshot
+			? (($showAnnotationsStore ?? {})[selectedScreenshot.id] ?? true)
+			: true
+	);
 	let sidebarImageContainerRef: HTMLDivElement;
 	let sidebarImgRef: HTMLImageElement;
 
@@ -381,7 +387,16 @@
 							<label class="flex cursor-pointer items-center gap-2">
 								<input
 									type="checkbox"
-									bind:checked={showAnnotations}
+									checked={showAnnotations}
+									onchange={(e) => {
+										if (showAnnotationsStore && selectedScreenshot) {
+											const checked = (e.target as HTMLInputElement).checked;
+											showAnnotationsStore.update((r) => ({
+												...r,
+												[selectedScreenshot.id]: checked
+											}));
+										}
+									}}
 									class="size-4 rounded border-input accent-primary focus:ring-2 focus:ring-ring focus:ring-offset-0"
 									aria-label="Show annotations on preview"
 								/>

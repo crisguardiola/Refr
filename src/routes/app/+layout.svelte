@@ -54,6 +54,9 @@
 	const currentScreenshotsStore = writable<Screenshot[]>([]);
 	setContext('currentScreenshots', currentScreenshotsStore);
 
+	const showAnnotationsStore = writable<Record<number, boolean>>({});
+	setContext('showAnnotations', showAnnotationsStore);
+
 	let flowOpen = $state(false);
 	let flowScreenshots = $state<Screenshot[]>([]);
 	let flowFolderId = $state<number | null>(null);
@@ -150,8 +153,9 @@
 			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
 			const json = await res.json();
 			if (json?.success) {
-				fullscreenScreenshot = { ...fullscreenScreenshot, annotationData: data };
-				selectedScreenshot = fullscreenScreenshot;
+				const updated = { ...fullscreenScreenshot, annotationData: data };
+				fullscreenScreenshot = updated;
+				selectedScreenshot = updated;
 				fullscreenEditMode = false;
 				await import('$app/navigation').then((m) => m.invalidateAll());
 			}
@@ -219,6 +223,7 @@
 							screenshots={screenshots}
 							folders={data.folders ?? []}
 							tags={data.tags ?? []}
+							showAnnotationsStore={showAnnotationsStore}
 						/>
 					</div>
 				</div>
@@ -315,6 +320,7 @@
 						/>
 						{#if fullscreenScreenshot.annotationData?.strokes?.length}
 							<AnnotationOverlay
+								key="fullscreen-{fullscreenScreenshot.id}-{fullscreenScreenshot.annotationData?.strokes?.length ?? 0}"
 								annotationData={fullscreenScreenshot.annotationData}
 								containerRef={fullscreenContainerRef}
 								imageRef={fullscreenImgRef}

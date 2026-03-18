@@ -36,37 +36,45 @@
 		return () => ro.disconnect();
 	});
 
-	function toOverlayCoords(nx: number, ny: number): { x: number; y: number } {
-		if (!containerRef || !imageRef) return { x: 0, y: 0 };
+	function toOverlayCoords(nx: number, ny: number): { x: number; y: number } | null {
+		if (!containerRef || !imageRef) return null;
 		const imgRect = imageRef.getBoundingClientRect();
 		const containerRect = containerRef.getBoundingClientRect();
+		if (imgRect.width <= 0 || imgRect.height <= 0) return null;
+		const numX = Number(nx);
+		const numY = Number(ny);
+		if (Number.isNaN(numX) || Number.isNaN(numY)) return null;
 		const imageX = imgRect.left - containerRect.left;
 		const imageY = imgRect.top - containerRect.top;
-		return {
-			x: imageX + nx * imgRect.width,
-			y: imageY + ny * imgRect.height
-		};
+		const x = imageX + numX * imgRect.width;
+		const y = imageY + numY * imgRect.height;
+		if (Number.isNaN(x) || Number.isNaN(y)) return null;
+		return { x, y };
 	}
 
 	const paths = $derived.by(() => {
 		layoutTick; // depend on layout tick for resize reactivity
+		if (!containerRef || !imageRef) return [];
 		const strokes = annotationData?.strokes ?? [];
-		return strokes
-			.filter((s) => s.points.length >= 2)
+		const filtered = strokes.filter((s) => s.points.length >= 2);
+		const result = filtered
 			.map((stroke) => {
-				const pts = stroke.points.map((p) => toOverlayCoords(p.x, p.y));
+				const pts = stroke.points.map((p) => toOverlayCoords(p.x, p.y)).filter((p): p is { x: number; y: number } => p !== null);
+				if (pts.length < 2) return null;
 				return {
 					d: `M ${pts[0].x} ${pts[0].y} ${pts.slice(1).map((p) => `L ${p.x} ${p.y}`).join(' ')}`,
 					color: stroke.color ?? DEFAULT_COLOR,
 					width: stroke.width ?? DEFAULT_WIDTH
 				};
-			});
+			})
+			.filter((p): p is NonNullable<typeof p> => p !== null);
+		return result;
 	});
 </script>
 
 {#if paths.length > 0}
 	<svg
-		class="pointer-events-none absolute inset-0 size-full"
+		class="pointer-events-none absolute inset-0 z-10 size-full"
 		aria-hidden="true"
 	>
 		{#each paths as path}

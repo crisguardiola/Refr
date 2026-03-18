@@ -9,6 +9,7 @@
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
 	import { groupScreenshotsByMonth } from '$lib/group-screenshots-by-month.js';
 	import { getColumnWidthPx } from '$lib/thumbnail-zoom.js';
+	import ThumbnailWithOverlay from '$lib/components/app/ThumbnailWithOverlay.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -19,6 +20,7 @@
 		fileName: string;
 		note?: string | null;
 		favourite?: boolean;
+		annotationData?: { strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[] } | null;
 		createdAt: Date | string;
 		folder?: { id: number; name: string } | null;
 		tags?: { id: number }[];
@@ -34,6 +36,7 @@
 	});
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
 	const zoomStore = getContext<import('svelte/store').Writable<number>>('thumbnailZoom');
+	const showAnnotationsStore = getContext<import('svelte/store').Writable<Record<number, boolean>>>('showAnnotations');
 
 	let filterState = $state<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>({
 		searchQuery: '',
@@ -278,13 +281,11 @@
 							fullscreenCtx?.setFullscreen(shot);
 						}}
 					>
-						<img
+						<ThumbnailWithOverlay
 							src={cloudinaryUrl(shot.url, 'thumbnail')}
 							alt={shot.fileName}
-							width={400}
-							height={400}
-							loading="lazy"
-							class="size-full object-cover transition-transform group-hover:scale-105 bg-muted/50"
+							showAnnotations={(showAnnotationsStore ? $showAnnotationsStore : {})[shot.id] ?? true}
+							annotationData={shot.annotationData}
 						/>
 					</button>
 					<Button
