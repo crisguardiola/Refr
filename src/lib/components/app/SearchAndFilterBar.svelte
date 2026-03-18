@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Search, Filter, X, Heart, ChevronDown } from '@lucide/svelte';
 	import type { Writable } from 'svelte/store';
 	import { getSectionForLabel } from '$lib/tags.js';
@@ -21,8 +20,6 @@
 		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>;
 	} = $props();
 
-	let popoverOpen = $state(false);
-	let activeFilterSection = $state<'screens' | 'ui_elements' | 'pattern' | null>(null);
 	let searchInputValue = $state('');
 	let tagSearchQuery = $state('');
 	let screenSearchQuery = $state('');
@@ -38,19 +35,10 @@
 	});
 
 	$effect(() => {
-		if (!popoverOpen) {
-			tagSearchQuery = '';
-			screenSearchQuery = '';
-		}
-	});
-
-	$effect(() => {
-		const viewingScreens = screensFilterOpen || (popoverOpen && activeFilterSection === 'screens');
-		if (!viewingScreens) screenSearchQuery = '';
+		if (!screensFilterOpen) screenSearchQuery = '';
 	});
 	$effect(() => {
-		const viewingTags = uiElementsFilterOpen || (popoverOpen && ['ui_elements', 'pattern'].includes(activeFilterSection ?? ''));
-		if (!viewingTags) tagSearchQuery = '';
+		if (!uiElementsFilterOpen) tagSearchQuery = '';
 	});
 
 	$effect(() => {
@@ -81,35 +69,13 @@
 		}, SEARCH_DEBOUNCE_MS);
 	}
 
-	function toggleTag(id: number, closePopover = false) {
+	function toggleTag(id: number) {
 		filterStore.update((prev) => {
 			const next = prev.selectedTagIds.includes(id)
 				? prev.selectedTagIds.filter((t) => t !== id)
 				: [...prev.selectedTagIds, id];
 			return { ...prev, selectedTagIds: next };
 		});
-		if (closePopover) popoverOpen = false;
-	}
-
-	/** Popover: single-select per dimension, then close */
-	function selectTagInPopover(id: number) {
-		const tag = tags.find((t) => t.id === id);
-		if (!tag) return;
-		const idsInDimension = new Set(
-			tags.filter((t) => t.dimension === tag.dimension).map((t) => t.id)
-		);
-		filterStore.update((prev) => {
-			const isSelected = prev.selectedTagIds.includes(id);
-			if (isSelected) {
-				return { ...prev, selectedTagIds: prev.selectedTagIds.filter((t) => t !== id) };
-			}
-			const next = [
-				...prev.selectedTagIds.filter((t) => !idsInDimension.has(t)),
-				id
-			];
-			return { ...prev, selectedTagIds: next };
-		});
-		popoverOpen = false;
 	}
 
 	function toggleFavouritesFilter() {
@@ -229,280 +195,39 @@
 		searchInputValue = v;
 		debouncedUpdateSearch(v);
 	}
+
+	function clearSearch() {
+		searchInputValue = '';
+		filterStore.update((prev) => ({ ...prev, searchQuery: '' }));
+	}
 </script>
 
 <div class="flex flex-col gap-3">
 	<div class="flex items-center gap-2">
-		<Popover.Root bind:open={popoverOpen}>
-			<Popover.Trigger
-				class="relative flex flex-1 min-w-[200px] max-w-sm cursor-pointer list-none appearance-none rounded-full border border-input bg-background px-4 py-3 text-left text-sm hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:hidden"
-				aria-label="Search and filter screenshots"
-			>
-				<Search
-					class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-					aria-hidden="true"
-				/>
-				<span
-					class="block truncate pl-9 {hasActiveFilters ? 'text-foreground' : 'text-muted-foreground'}"
+		<div class="relative flex flex-1 min-w-[200px] max-w-sm">
+			<Search
+				class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+				aria-hidden="true"
+			/>
+			<Input
+				value={searchInputValue}
+				oninput={onSearchInput}
+				type="search"
+				placeholder="Search by file name and note"
+				class="h-10 w-full rounded-full pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden"
+				aria-label="Search screenshots"
+			/>
+			{#if searchInputValue}
+				<button
+					type="button"
+					onclick={clearSearch}
+					class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					aria-label="Clear search"
 				>
-					{#if hasActiveFilters}
-						{filter.searchQuery || 'Filters active'}
-						{#if selectedTags.length > 0 || filter.favouritesOnly}
-							<span class="ml-1 text-xs opacity-70">
-								({selectedTags.length + (filter.favouritesOnly ? 1 : 0)})
-							</span>
-						{/if}
-					{:else}
-						Search by name, note, screens, or UI elements...
-					{/if}
-				</span>
-			</Popover.Trigger>
-			<Popover.Portal>
-				<Popover.Content
-					align="start"
-					side="bottom"
-					class="w-[min(90vw,480px)] rounded-2xl p-0"
-					onclick={(e) => e.stopPropagation()}
-				>
-					<!-- Header: search + favourites chip -->
-					<div class="flex items-center gap-2 border-b border-border p-3">
-						<div class="relative flex-1 min-w-0">
-							<Search
-								class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-								aria-hidden="true"
-							/>
-							<Input
-								value={searchInputValue}
-								oninput={onSearchInput}
-								type="search"
-								placeholder="Search by name, note, screens, or UI elements..."
-								class="h-10 rounded-full pl-9"
-								aria-label="Search screenshots"
-								onclick={(e) => e.stopPropagation()}
-							/>
-						</div>
-						<button
-							type="button"
-							class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-3 text-sm font-medium transition-colors {filter.favouritesOnly
-								? 'border-primary bg-primary/10 text-primary'
-								: 'border-input bg-muted/50 hover:bg-muted'}"
-						onclick={(e) => {
-									e.stopPropagation();
-									toggleFavouritesFilter();
-								}}
-							aria-label={filter.favouritesOnly ? 'Remove favourites filter' : 'Show favourites only'}
-							aria-pressed={filter.favouritesOnly}
-						>
-							<Heart
-								class="size-4 {filter.favouritesOnly ? 'fill-primary text-primary' : 'text-muted-foreground'}"
-							/>
-							<span class="hidden sm:inline">Favourites</span>
-						</button>
-					</div>
-
-					<!-- Body: side menu + detail panel -->
-					<div class="flex min-h-[200px] max-h-[320px]">
-						<nav
-							class="flex w-36 shrink-0 flex-col border-e border-border bg-muted/30"
-							aria-label="Filter categories"
-						>
-							{#if screenTags.length > 0}
-								<button
-									type="button"
-									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'screens'
-										? 'bg-background text-foreground'
-										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
-									onclick={(e) => {
-										e.stopPropagation();
-										activeFilterSection = activeFilterSection === 'screens' ? null : 'screens';
-									}}
-								>
-									<Filter class="size-4 shrink-0" />
-									<span>Screens</span>
-									{#if selectedScreenCount > 0}
-										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-											{selectedScreenCount}
-										</span>
-									{/if}
-								</button>
-							{/if}
-							{#if uiElementsBySection.length > 0}
-								<button
-									type="button"
-									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'ui_elements'
-										? 'bg-background text-foreground'
-										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
-									onclick={(e) => {
-										e.stopPropagation();
-										activeFilterSection = activeFilterSection === 'ui_elements' ? null : 'ui_elements';
-									}}
-								>
-									<Filter class="size-4 shrink-0" />
-									<span>UI Elements</span>
-									{#if selectedUiElementCount > 0}
-										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-											{selectedUiElementCount}
-										</span>
-									{/if}
-								</button>
-							{/if}
-							{#if patternTags.length > 0}
-								<button
-									type="button"
-									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'pattern'
-										? 'bg-background text-foreground'
-										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
-									onclick={(e) => {
-										e.stopPropagation();
-										activeFilterSection = activeFilterSection === 'pattern' ? null : 'pattern';
-									}}
-								>
-									<Filter class="size-4 shrink-0" />
-									<span>Pattern</span>
-									{#if selectedPatternCount > 0}
-										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-											{selectedPatternCount}
-										</span>
-									{/if}
-								</button>
-							{/if}
-						</nav>
-						<div class="min-w-0 flex-1 overflow-y-auto p-3">
-							{#if activeFilterSection === 'screens'}
-								<div class="space-y-4">
-									{#if screenTags.length >= TAG_SEARCH_THRESHOLD}
-										<div class="relative">
-											<Search
-												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-												aria-hidden="true"
-											/>
-											<Input
-												bind:value={screenSearchQuery}
-												type="search"
-												placeholder="Search screens..."
-												class="h-8 pl-8 text-xs"
-												aria-label="Search screens"
-												onclick={(e) => e.stopPropagation()}
-											/>
-										</div>
-									{/if}
-									{#each screensBySection as { section, tags: sectionTags }}
-										<div class="space-y-2">
-											<p class={SECTION_HEADER_CLASS}>{section}</p>
-											<div class="flex flex-wrap gap-2">
-												{#each sectionTags as tag (tag.id)}
-													{@const count = tagCounts[tag.id]}
-													<button
-														type="button"
-														class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-															? 'border-primary bg-primary text-primary-foreground'
-															: 'border-input bg-muted/50 hover:bg-muted'}"
-														onclick={(e) => {
-															e.stopPropagation();
-															selectTagInPopover(tag.id);
-														}}
-													>
-														{tag.label}{#if count != null}
-															<span class="ml-1 opacity-70">({count})</span>
-														{/if}
-													</button>
-												{/each}
-											</div>
-										</div>
-									{/each}
-								</div>
-							{:else if activeFilterSection === 'ui_elements'}
-								<div class="space-y-4">
-									{#if showUiElementsSearch}
-										<div class="relative">
-											<Search
-												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-												aria-hidden="true"
-											/>
-											<Input
-												bind:value={tagSearchQuery}
-												type="search"
-												placeholder="Search UI elements..."
-												class="h-8 pl-8 text-xs"
-												aria-label="Search UI elements"
-												onclick={(e) => e.stopPropagation()}
-											/>
-										</div>
-									{/if}
-									{#each uiElementsBySection as { section, tags: sectionTags }}
-										<div class="space-y-2">
-											<p class={SECTION_HEADER_CLASS}>{section}</p>
-											<div class="flex flex-wrap gap-2">
-												{#each sectionTags as tag (tag.id)}
-													{@const count = tagCounts[tag.id]}
-													<button
-														type="button"
-														class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-															? 'border-primary bg-primary text-primary-foreground'
-															: 'border-input bg-muted/50 hover:bg-muted'}"
-														onclick={(e) => {
-															e.stopPropagation();
-															selectTagInPopover(tag.id);
-														}}
-													>
-														{tag.label}{#if count != null}
-															<span class="ml-1 opacity-70">({count})</span>
-														{/if}
-													</button>
-												{/each}
-											</div>
-										</div>
-									{/each}
-								</div>
-							{:else if activeFilterSection === 'pattern'}
-								<div class="space-y-4">
-									{#if patternTags.length >= TAG_SEARCH_THRESHOLD}
-										<div class="relative">
-											<Search
-												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-												aria-hidden="true"
-											/>
-											<Input
-												bind:value={tagSearchQuery}
-												type="search"
-												placeholder="Search patterns..."
-												class="h-8 pl-8 text-xs"
-												aria-label="Search patterns"
-												onclick={(e) => e.stopPropagation()}
-											/>
-										</div>
-									{/if}
-									<p class={SECTION_HEADER_CLASS}>Pattern</p>
-									<div class="flex flex-wrap gap-2">
-										{#each filteredPatternTags as tag (tag.id)}
-											{@const count = tagCounts[tag.id]}
-											<button
-												type="button"
-												class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-													? 'border-primary bg-primary text-primary-foreground'
-													: 'border-input bg-muted/50 hover:bg-muted'}"
-												onclick={(e) => {
-													e.stopPropagation();
-													selectTagInPopover(tag.id);
-												}}
-											>
-												{tag.label}{#if count != null}
-													<span class="ml-1 opacity-70">({count})</span>
-												{/if}
-											</button>
-										{/each}
-									</div>
-								</div>
-							{:else}
-								<p class="text-sm text-muted-foreground">
-									Select a filter to refine your search.
-								</p>
-							{/if}
-						</div>
-					</div>
-				</Popover.Content>
-			</Popover.Portal>
-		</Popover.Root>
+					<X class="size-4" />
+				</button>
+			{/if}
+		</div>
 		{#if screenTags.length > 0}
 			<details
 				bind:this={screensRef}
