@@ -247,7 +247,7 @@
 
 <aside
 	class={cn(
-		'flex w-64 shrink-0 flex-col overflow-auto border-s border-border bg-background p-4',
+		'flex w-64 shrink-0 flex-col overflow-auto bg-background p-4',
 		'sm:w-72 lg:w-80'
 	)}
 	data-slot="app-right-sidebar"

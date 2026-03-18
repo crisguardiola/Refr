@@ -23,13 +23,13 @@
 	});
 	setContext('screenshotFilters', filterStore);
 
-	/** Zoom level 0–100: 0 = smallest thumbnails (8 cols), 100 = biggest (2 cols) */
+	/** Zoom level 0–100: 0 = smallest thumbnails (5 cols), 100 = biggest (2 cols) */
 	const thumbnailZoomStore = writable(50);
 	setContext('thumbnailZoom', thumbnailZoomStore);
 </script>
 
 <div
-	class="flex min-h-0 flex-1 flex-col overflow-auto border-e border-border bg-muted/30 p-8"
+	class="flex min-h-0 flex-1 flex-col overflow-auto bg-muted/30 p-8"
 	data-slot="app-center"
 >
 	<div class="mb-6">
