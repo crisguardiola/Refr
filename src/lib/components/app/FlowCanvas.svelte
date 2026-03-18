@@ -78,13 +78,33 @@
 	let markupCanvasRef: HTMLCanvasElement;
 	let draggingId = $state<number | null>(null);
 	let dragOffset = $state({ x: 0, y: 0 });
+	let isPanning = $state(false);
+	let panStart = $state<{ scrollLeft: number; scrollTop: number; clientX: number; clientY: number } | null>(null);
 	let canvasRef: HTMLDivElement;
+	let canvasScrollRef: HTMLDivElement;
+	let zoomLevel = $state(1);
+	let zoomOrigin = $state({ x: 0, y: 0 });
 
 	// Arrow drawing: from selected screen (center→center) or free (point→point)
 	let drawingArrow = $state<{ type: 'screen'; fromScreen: number } | { type: 'free'; fromX: number; fromY: number } | null>(null);
 	let drawCurrent = $state<{ x: number; y: number } | null>(null);
 
+	// Arrow editing (cursor mode): drag endpoints
+	let editingArrow = $state<
+		| { type: 'free'; index: number; end: 'from' | 'to' }
+		| { type: 'screen'; index: number; end: 'from' | 'to' }
+		| null
+	>(null);
+	let editStart = $state<{
+		clientX: number;
+		clientY: number;
+		free?: { fromX: number; fromY: number; toX: number; toY: number };
+		screen?: { from: number; to: number };
+	} | null>(null);
+	let editPreview = $state<{ x: number; y: number } | null>(null);
+
 	const ARROW_HIT_THRESHOLD = 12;
+	const ARROW_ENDPOINT_HIT_THRESHOLD = 18;
 	const MARKUP_ERASER_THRESHOLD = 8;
 
 	function getNodeById(id: number) {
@@ -101,7 +121,10 @@
 	function clientToCanvas(clientX: number, clientY: number) {
 		if (!canvasRef) return null;
 		const rect = canvasRef.getBoundingClientRect();
-		return { x: clientX - rect.left, y: clientY - rect.top };
+		return {
+			x: (clientX - rect.left) / zoomLevel,
+			y: (clientY - rect.top) / zoomLevel
+		};
 	}
 
 	function hitTestNode(clientX: number, clientY: number): number | null {
@@ -157,6 +180,42 @@
 			}
 		}
 		return best ? { type: best.type, index: best.index } : null;
+	}
+
+	/** Which endpoint of an arrow is closer to the click? Used for endpoint editing. */
+	function hitTestArrowEnd(
+		clientX: number,
+		clientY: number
+	): { type: 'screen'; index: number; end: 'from' | 'to' } | { type: 'free'; index: number; end: 'from' | 'to' } | null {
+		const pt = clientToCanvas(clientX, clientY);
+		if (!pt) return null;
+		const hit = hitTestArrow(clientX, clientY);
+		if (!hit) return null;
+		if (hit.type === 'free') {
+			const fa = freeArrows[hit.index];
+			if (!fa) return null;
+			const dFrom = Math.hypot(pt.x - fa.fromX, pt.y - fa.fromY);
+			const dTo = Math.hypot(pt.x - fa.toX, pt.y - fa.toY);
+			return { type: 'free', index: hit.index, end: dFrom <= dTo ? 'from' : 'to' };
+		}
+		// Screen arrow: compare distance to visual start vs tip
+		const fromNode = getNodeById(arrows[hit.index].from);
+		const toNode = getNodeById(arrows[hit.index].to);
+		if (!fromNode || !toNode) return null;
+		const fromC = getNodeCenter(fromNode);
+		const toC = getNodeCenter(toNode);
+		const dx = toC.x - fromC.x;
+		const dy = toC.y - fromC.y;
+		const len = Math.sqrt(dx * dx + dy * dy) || 1;
+		const ux = dx / len;
+		const uy = dy / len;
+		const startX = fromC.x + ux * (fromNode.width / 2 + 4);
+		const startY = fromC.y + uy * (fromNode.height / 2 + 4);
+		const tipX = toC.x - ux * (toNode.width / 2 + 4);
+		const tipY = toC.y - uy * (toNode.height / 2 + 4);
+		const dFrom = Math.hypot(pt.x - startX, pt.y - startY);
+		const dTo = Math.hypot(pt.x - tipX, pt.y - tipY);
+		return { type: 'screen', index: hit.index, end: dFrom <= dTo ? 'from' : 'to' };
 	}
 
 	function deleteSelectedArrow() {
@@ -272,26 +331,53 @@
 		const node = getNodeById(nodeId);
 		if (!node) return;
 		if (mode === 'markup') return; // drawing handled by overlay
+		if (mode === 'move' && canvasScrollRef) {
+			// Hand: pan even when clicking on a screen
+			isPanning = true;
+			panStart = {
+				scrollLeft: canvasScrollRef.scrollLeft,
+				scrollTop: canvasScrollRef.scrollTop,
+				clientX: e.clientX,
+				clientY: e.clientY
+			};
+			return;
+		}
 		if (mode === 'arrow') {
 			if (drawingArrow) return; // already drawing
-			if (selectedScreenId === nodeId) {
-				// Start drawing from selected screen (click on border = click on screen)
-				drawingArrow = { type: 'screen', fromScreen: nodeId };
-				drawCurrent = clientToCanvas(e.clientX, e.clientY);
-			} else {
-				// Select this screen
-				selectedScreenId = nodeId;
+			// Click on screen: select and start drawing immediately (one action)
+			selectedScreenId = nodeId;
+			drawingArrow = { type: 'screen', fromScreen: nodeId };
+			drawCurrent = clientToCanvas(e.clientX, e.clientY);
+		} else if (mode === 'select' && canvasRef) {
+			// Cursor: select and move screens
+			selectedArrow = null;
+			const pt = clientToCanvas(e.clientX, e.clientY);
+			if (pt) {
+				draggingId = nodeId;
+				dragOffset = { x: pt.x - node.x, y: pt.y - node.y };
 			}
-		} else if (mode === 'select') {
-			selectedArrow = null; // clicking on node deselects arrow
-		} else if (mode === 'move' && canvasRef) {
-			const rect = canvasRef.getBoundingClientRect();
-			draggingId = nodeId;
-			dragOffset = {
-				x: e.clientX - rect.left - node.x,
-				y: e.clientY - rect.top - node.y
-			};
 		}
+	}
+
+	function handleCanvasWheel(e: WheelEvent) {
+		if (!canvasRef) return;
+		e.preventDefault();
+		const rect = canvasRef.getBoundingClientRect();
+		const cursorX = (e.clientX - rect.left) / zoomLevel;
+		const cursorY = (e.clientY - rect.top) / zoomLevel;
+		zoomOrigin = { x: cursorX, y: cursorY };
+		const delta = -Math.sign(e.deltaY) * 0.15;
+		zoomLevel = Math.max(0.25, Math.min(2, zoomLevel * (1 + delta)));
+	}
+
+	function canvasWheelAction(node: HTMLDivElement) {
+		const handler = (e: WheelEvent) => handleCanvasWheel(e);
+		node.addEventListener('wheel', handler, { passive: false });
+		return {
+			destroy() {
+				node.removeEventListener('wheel', handler);
+			}
+		};
 	}
 
 	function handleCanvasPointerDown(e: PointerEvent) {
@@ -299,9 +385,48 @@
 		if (target.closest('img')) return; // hit a screen, let it handle
 		const pt = clientToCanvas(e.clientX, e.clientY);
 		if (!pt) return;
+		if (mode === 'move' && canvasScrollRef) {
+			// Hand: pan the canvas
+			isPanning = true;
+			panStart = {
+				scrollLeft: canvasScrollRef.scrollLeft,
+				scrollTop: canvasScrollRef.scrollTop,
+				clientX: e.clientX,
+				clientY: e.clientY
+			};
+			return;
+		}
 		if (mode === 'select') {
 			const hit = hitTestArrow(e.clientX, e.clientY);
-			selectedArrow = hit;
+			const endHit = hit ? hitTestArrowEnd(e.clientX, e.clientY) : null;
+			const isSelected = selectedArrow && hit && selectedArrow.type === hit.type && selectedArrow.index === hit.index;
+			if (hit && endHit && isSelected) {
+				if (endHit.type === 'free') {
+					const fa = freeArrows[endHit.index];
+					if (fa) {
+						editingArrow = { type: 'free', index: endHit.index, end: endHit.end };
+						editStart = {
+							clientX: e.clientX,
+							clientY: e.clientY,
+							free: { fromX: fa.fromX, fromY: fa.fromY, toX: fa.toX, toY: fa.toY }
+						};
+						editPreview = null;
+					}
+				} else {
+					const arr = arrows[endHit.index];
+					if (arr && pt) {
+						editingArrow = { type: 'screen', index: endHit.index, end: endHit.end };
+						editStart = {
+							clientX: e.clientX,
+							clientY: e.clientY,
+							screen: { from: arr.from, to: arr.to }
+						};
+						editPreview = pt;
+					}
+				}
+			} else {
+				selectedArrow = hit;
+			}
 			return;
 		}
 		if (mode === 'arrow' && !drawingArrow) {
@@ -314,22 +439,73 @@
 	function handlePointerMove(e: PointerEvent) {
 		const pt = clientToCanvas(e.clientX, e.clientY);
 		if (pt) drawCurrent = pt;
-		if (draggingId === null || !canvasRef) return;
+		if (isPanning && panStart && canvasScrollRef) {
+			const dx = e.clientX - panStart.clientX;
+			const dy = e.clientY - panStart.clientY;
+			canvasScrollRef.scrollLeft = panStart.scrollLeft - dx;
+			canvasScrollRef.scrollTop = panStart.scrollTop - dy;
+			return;
+		}
+		if (editingArrow && editStart && pt) {
+			if (editingArrow.type === 'free' && editStart.free) {
+				const fa = editStart.free;
+				if (editingArrow.end === 'from') {
+					freeArrows = freeArrows.map((a, i) =>
+						i === editingArrow.index ? { ...a, fromX: pt.x, fromY: pt.y } : a
+					);
+				} else {
+					freeArrows = freeArrows.map((a, i) =>
+						i === editingArrow.index ? { ...a, toX: pt.x, toY: pt.y } : a
+					);
+				}
+			} else if (editingArrow.type === 'screen') {
+				editPreview = pt;
+			}
+			return;
+		}
+		editPreview = null;
+		if (draggingId === null || !pt) return;
 		const node = getNodeById(draggingId);
 		if (!node) return;
-		const rect = canvasRef.getBoundingClientRect();
 		nodes = nodes.map((n) =>
 			n.id === draggingId
 				? {
 						...n,
-						x: Math.max(0, e.clientX - rect.left - dragOffset.x),
-						y: Math.max(0, e.clientY - rect.top - dragOffset.y)
+						x: Math.max(0, pt.x - dragOffset.x),
+						y: Math.max(0, pt.y - dragOffset.y)
 					}
 				: n
 		);
 	}
 
 	function handlePointerUp(e: PointerEvent) {
+		if (isPanning) {
+			isPanning = false;
+			panStart = null;
+			return;
+		}
+		if (editingArrow) {
+			if (editingArrow.type === 'screen' && editStart?.screen) {
+				const hitNode = hitTestNode(e.clientX, e.clientY);
+				const otherScreen = editingArrow.end === 'from' ? editStart.screen.to : editStart.screen.from;
+				if (hitNode && hitNode !== otherScreen) {
+					const arr = arrows[editingArrow.index];
+					if (arr) {
+						arrows = arrows.map((a, i) =>
+							i === editingArrow!.index
+								? editingArrow!.end === 'from'
+									? { ...a, from: hitNode }
+									: { ...a, to: hitNode }
+								: a
+						);
+					}
+				}
+			}
+			editingArrow = null;
+			editStart = null;
+			editPreview = null;
+			return;
+		}
 		if (drawingArrow) {
 			const pt = clientToCanvas(e.clientX, e.clientY);
 			const hitNode = hitTestNode(e.clientX, e.clientY);
@@ -406,6 +582,49 @@
 
 <svelte:window
 	onkeydown={(e) => {
+		const target = e.target as HTMLElement;
+		if (target.closest('input, textarea, [contenteditable]')) return;
+		if (e.key === 'h' || e.key === 'H') {
+			e.preventDefault();
+			mode = 'move';
+			selectedScreenId = null;
+			drawingArrow = null;
+			selectedArrow = null;
+			editingArrow = null;
+		}
+		if (e.key === 'v' || e.key === 'V') {
+			e.preventDefault();
+			mode = 'select';
+			selectedScreenId = null;
+			drawingArrow = null;
+			editingArrow = null;
+		}
+		if (e.key === 'a' || e.key === 'A') {
+			e.preventDefault();
+			mode = 'arrow';
+			selectedScreenId = null;
+			drawingArrow = null;
+			selectedArrow = null;
+			editingArrow = null;
+		}
+		if (e.key === 'm' || e.key === 'M') {
+			e.preventDefault();
+			mode = 'markup';
+			markupDrawMode = 'draw';
+			selectedScreenId = null;
+			drawingArrow = null;
+			selectedArrow = null;
+			editingArrow = null;
+		}
+		if (e.key === 'e' || e.key === 'E') {
+			e.preventDefault();
+			mode = 'markup';
+			markupDrawMode = 'erase';
+			selectedScreenId = null;
+			drawingArrow = null;
+			selectedArrow = null;
+			editingArrow = null;
+		}
 		if (e.key === 'Escape') {
 			if (drawingArrow) drawingArrow = null;
 			else if (selectedScreenId) selectedScreenId = null;
@@ -438,16 +657,25 @@
 	</div>
 
 	<!-- Canvas area -->
-	<div class="relative min-h-0 flex-1 overflow-auto bg-background flow-canvas-dots">
+	<div
+		bind:this={canvasScrollRef}
+		class="relative min-h-0 flex-1 overflow-auto bg-background flow-canvas-dots"
+		role="region"
+		aria-label="Flow canvas"
+		use:canvasWheelAction
+	>
 		<div
 			bind:this={canvasRef}
-			class="relative min-h-[600px] min-w-[800px] p-8 {mode === 'arrow' && !drawingArrow
-				? 'cursor-crosshair'
-				: mode === 'select'
-					? 'cursor-pointer'
-					: mode === 'markup'
-						? 'cursor-crosshair'
-						: ''}"
+			class="relative min-h-[600px] min-w-[800px] origin-top-left p-8 transition-none {mode === 'move'
+				? 'cursor-grab active:cursor-grabbing'
+				: mode === 'arrow' && !drawingArrow
+					? 'cursor-crosshair'
+					: mode === 'select'
+						? 'cursor-default'
+						: mode === 'markup'
+							? 'cursor-crosshair'
+							: ''}"
+			style="transform: scale({zoomLevel}); transform-origin: {zoomOrigin.x}px {zoomOrigin.y}px;"
 			role="presentation"
 			onpointerdown={handleCanvasPointerDown}
 		>
@@ -470,10 +698,11 @@
 				</defs>
 				<!-- Screen-to-screen arrows (center to center, adapt when screens move) -->
 				{#each arrows as arrow, i}
+					{@const isBeingEdited = editingArrow?.type === 'screen' && editingArrow.index === i}
 					{@const fromNode = getNodeById(arrow.from)}
 					{@const toNode = getNodeById(arrow.to)}
 					{@const isSelected = selectedArrow?.type === 'screen' && selectedArrow?.index === i}
-					{#if fromNode && toNode}
+					{#if fromNode && toNode && !isBeingEdited}
 						{@const fromC = getNodeCenter(fromNode)}
 						{@const toC = getNodeCenter(toNode)}
 						{@const dx = toC.x - fromC.x}
@@ -495,6 +724,10 @@
 							stroke-opacity={isSelected ? '1' : '1'}
 							marker-end="url(#flow-arrowhead)"
 						/>
+						{#if isSelected}
+							<circle cx={startX} cy={startY} r="6" fill="white" stroke="var(--primary)" stroke-width="2" />
+							<circle cx={tipX} cy={tipY} r="6" fill="white" stroke="var(--primary)" stroke-width="2" />
+						{/if}
 					{/if}
 				{/each}
 				<!-- Free arrows (fixed positions) -->
@@ -515,6 +748,10 @@
 						stroke-dasharray="4 2"
 						marker-end="url(#flow-arrowhead)"
 					/>
+					{#if isSelected}
+						<circle cx={fa.fromX} cy={fa.fromY} r="6" fill="white" stroke="var(--primary)" stroke-width="2" />
+						<circle cx={fa.toX} cy={fa.toY} r="6" fill="white" stroke="var(--primary)" stroke-width="2" />
+					{/if}
 				{/each}
 				<!-- Preview line while drawing -->
 				{#if drawingArrow && drawCurrent}
@@ -527,15 +764,19 @@
 							{@const len = Math.sqrt(dx * dx + dy * dy) || 1}
 							{@const ux = dx / len}
 							{@const uy = dy / len}
+							{@const startX = fromC.x + ux * (fromNode.width / 2 + 4)}
+							{@const startY = fromC.y + uy * (fromNode.height / 2 + 4)}
+							<!-- Anchor dot at screen edge (linked to screenshot) -->
+							<circle cx={startX} cy={startY} r="6" fill="none" stroke="var(--primary)" stroke-width="2.5" opacity="1" />
+							<!-- Screen-linked arrow: solid line, thicker, full opacity -->
 							<line
-								x1={fromC.x + ux * (fromNode.width / 2 + 4)}
-								y1={fromC.y + uy * (fromNode.height / 2 + 4)}
+								x1={startX}
+								y1={startY}
 								x2={drawCurrent.x}
 								y2={drawCurrent.y}
 								stroke="var(--primary)"
-								stroke-width="3"
-								stroke-dasharray="6 4"
-								opacity="0.8"
+								stroke-width="4"
+								opacity="1"
 								marker-end="url(#flow-arrowhead)"
 							/>
 						{/if}
@@ -558,6 +799,31 @@
 						/>
 					{/if}
 				{/if}
+				<!-- Preview while editing screen arrow endpoint -->
+				{#if editingArrow?.type === 'screen' && editPreview && editStart?.screen}
+					{@const fixedScreenId = editingArrow.end === 'from' ? editStart.screen.to : editStart.screen.from}
+					{@const fixedNode = getNodeById(fixedScreenId)}
+					{#if fixedNode}
+						{@const fixedC = getNodeCenter(fixedNode)}
+						{@const dx = editPreview.x - fixedC.x}
+						{@const dy = editPreview.y - fixedC.y}
+						{@const len = Math.sqrt(dx * dx + dy * dy) || 1}
+						{@const ux = dx / len}
+						{@const uy = dy / len}
+						{@const startX = fixedC.x + ux * (fixedNode.width / 2 + 4)}
+						{@const startY = fixedC.y + uy * (fixedNode.height / 2 + 4)}
+						<line
+							x1={startX}
+							y1={startY}
+							x2={editPreview.x}
+							y2={editPreview.y}
+							stroke="white"
+							stroke-width="4"
+							opacity="0.9"
+							marker-end="url(#flow-arrowhead)"
+						/>
+					{/if}
+				{/if}
 			</svg>
 
 			<!-- Draggable nodes - image only -->
@@ -570,10 +836,14 @@
 						src={cloudinaryUrl(shot.url, 'detail')}
 						alt={shot.fileName}
 						draggable="false"
-						class="absolute block max-w-[400px] max-h-[400px] w-auto h-auto object-contain transition-shadow {mode === 'move'
-							? 'cursor-grab active:cursor-grabbing'
+						class="absolute block max-w-[400px] max-h-[400px] w-auto h-auto object-contain transition-shadow {mode === 'select'
+							? (draggingId === node.id ? 'cursor-grabbing' : 'cursor-default')
 							: 'cursor-crosshair'}
-						hover:shadow-lg {selectedScreenId === node.id ? 'ring-2 ring-primary' : ''}
+						hover:shadow-lg {(selectedScreenId === node.id ||
+							(drawingArrow?.type === 'screen' && drawingArrow.fromScreen === node.id) ||
+							arrows.some((a) => a.from === node.id))
+							? 'ring-2 ring-primary ring-offset-2 shadow-lg shadow-primary/40'
+							: ''}
 						{draggingId === node.id ? 'z-10' : ''}"
 						style="left: {node.x}px; top: {node.y}px;"
 						onpointerdown={(e) => handleNodePointerDown(e, node.id)}
@@ -607,40 +877,60 @@
 		</div>
 	</div>
 
-	<!-- Bottom toolbar - Mark up style -->
+	<!-- Settings bar (colors, strokes) - above main toolbar, markup mode only -->
+	{#if mode === 'markup' && markupDrawMode === 'draw'}
+		<div
+			class="absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center gap-4 rounded-lg bg-black/60 px-4 py-2.5"
+			role="toolbar"
+			aria-label="Markup settings"
+		>
+			<div class="flex items-center gap-1.5">
+				<span class="text-xs text-white/60">Color</span>
+				{#each MARKUP_COLORS as color}
+					<button
+						type="button"
+						class="size-7 rounded-full border-2 transition-all {markupColor === color.value
+							? 'border-white scale-110'
+							: 'border-transparent hover:scale-105'}"
+						style="background-color: {color.value}"
+						onclick={() => (markupColor = color.value)}
+						aria-label={color.label}
+						aria-pressed={markupColor === color.value}
+					></button>
+				{/each}
+			</div>
+			<div class="h-4 w-px bg-white/30" role="separator"></div>
+			<div class="flex items-center gap-1.5">
+				<span class="text-xs text-white/60">Size</span>
+				{#each MARKUP_WIDTHS as w}
+					<button
+						type="button"
+						class="flex h-7 min-w-7 items-center justify-center rounded-md px-2 text-xs font-medium transition-colors {markupWidth === w
+							? 'bg-white/30 text-white'
+							: 'text-white/80 hover:bg-white/20'}"
+						onclick={() => (markupWidth = w)}
+						aria-label="Stroke width {w}"
+						aria-pressed={markupWidth === w}
+					>
+						{w}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Bottom toolbar -->
 	<div
-		class="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-between gap-3 rounded-lg bg-black/60 px-4 py-3"
+		class="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center gap-3 rounded-lg bg-black/60 px-4 py-3"
 		role="toolbar"
 	>
 		<div class="flex flex-nowrap items-center gap-2">
 			<button
 				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'move'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'move', selectedScreenId = null, drawingArrow = null, selectedArrow = null)}
-				aria-label="Move screens"
-				aria-pressed={mode === 'move'}
-			>
-				<Hand class="size-4" />
-			</button>
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'arrow'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'arrow', selectedScreenId = null, drawingArrow = null, selectedArrow = null)}
-				aria-label="Add arrow"
-				aria-pressed={mode === 'arrow'}
-			>
-				<ArrowRight class="size-4" />
-			</button>
-			<button
-				type="button"
 				class="rounded-md p-2 transition-colors {mode === 'select'
 					? 'bg-white/20 text-white'
 					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'select', selectedScreenId = null, drawingArrow = null)}
+				onclick={() => (mode = 'select', selectedScreenId = null, drawingArrow = null, editingArrow = null)}
 				aria-label="Select arrows"
 				aria-pressed={mode === 'select'}
 			>
@@ -648,74 +938,52 @@
 			</button>
 			<button
 				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'markup'
+				class="rounded-md p-2 transition-colors {mode === 'move'
 					? 'bg-white/20 text-white'
 					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'markup', selectedScreenId = null, drawingArrow = null, selectedArrow = null)}
+				onclick={() => (mode = 'move', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
+				aria-label="Move screens"
+				aria-pressed={mode === 'move'}
+			>
+				<Hand class="size-4" />
+			</button>
+		</div>
+		<div class="h-4 w-px bg-white/30" role="separator"></div>
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="rounded-md p-2 transition-colors {mode === 'arrow'
+					? 'bg-white/20 text-white'
+					: 'text-white/80 hover:bg-white/20'}"
+				onclick={() => (mode = 'arrow', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
+				aria-label="Add arrow"
+				aria-pressed={mode === 'arrow'}
+			>
+				<ArrowRight class="size-4" />
+			</button>
+			<button
+				type="button"
+				class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'draw'
+					? 'bg-white/20 text-white'
+					: 'text-white/80 hover:bg-white/20'}"
+				onclick={() => (mode = 'markup', markupDrawMode = 'draw', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
 				aria-label="Mark up"
-				aria-pressed={mode === 'markup'}
+				aria-pressed={mode === 'markup' && markupDrawMode === 'draw'}
 			>
 				<Pencil class="size-4" />
 			</button>
+			<button
+				type="button"
+				class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'erase'
+					? 'bg-white/20 text-white'
+					: 'text-white/80 hover:bg-white/20'}"
+				onclick={() => (mode = 'markup', markupDrawMode = 'erase', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
+				aria-label="Eraser"
+				aria-pressed={mode === 'markup' && markupDrawMode === 'erase'}
+			>
+				<Eraser class="size-4" />
+			</button>
 		</div>
-		{#if mode === 'markup'}
-			<div class="h-4 w-px bg-white/30" role="separator"></div>
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					class="rounded-md p-2 transition-colors {markupDrawMode === 'draw'
-						? 'bg-white/20 text-white'
-						: 'text-white/80 hover:bg-white/20'}"
-					onclick={() => (markupDrawMode = 'draw')}
-					aria-label="Draw"
-					aria-pressed={markupDrawMode === 'draw'}
-				>
-					<Pencil class="size-4" />
-				</button>
-				<button
-					type="button"
-					class="rounded-md p-2 transition-colors {markupDrawMode === 'erase'
-						? 'bg-white/20 text-white'
-						: 'text-white/80 hover:bg-white/20'}"
-					onclick={() => (markupDrawMode = 'erase')}
-					aria-label="Eraser"
-					aria-pressed={markupDrawMode === 'erase'}
-				>
-					<Eraser class="size-4" />
-				</button>
-			</div>
-			{#if markupDrawMode === 'draw'}
-				<div class="flex items-center gap-1.5">
-					{#each MARKUP_COLORS as color}
-						<button
-							type="button"
-							class="size-7 rounded-full border-2 transition-all {markupColor === color.value
-								? 'border-white scale-110'
-								: 'border-transparent hover:scale-105'}"
-							style="background-color: {color.value}"
-							onclick={() => (markupColor = color.value)}
-							aria-label={color.label}
-							aria-pressed={markupColor === color.value}
-						></button>
-					{/each}
-				</div>
-				<div class="flex items-center gap-1">
-					{#each MARKUP_WIDTHS as w}
-						<button
-							type="button"
-							class="flex h-7 min-w-7 items-center justify-center rounded-md px-2 text-xs font-medium transition-colors {markupWidth === w
-								? 'bg-white/30 text-white'
-								: 'text-white/80 hover:bg-white/20'}"
-							onclick={() => (markupWidth = w)}
-							aria-label="Stroke width {w}"
-							aria-pressed={markupWidth === w}
-						>
-							{w}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		{/if}
 		<div class="h-4 w-px bg-white/30" role="separator"></div>
 		{#if mode === 'select' && selectedArrow}
 			<button
@@ -727,12 +995,12 @@
 				<Trash2 class="size-4" />
 				Delete
 			</button>
+			<div class="h-4 w-px bg-white/30" role="separator"></div>
 		{/if}
-		<div class="h-4 w-px bg-white/30" role="separator"></div>
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+				class="flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-white/20"
 				onclick={handleSave}
 				aria-label="Save"
 			>
@@ -741,7 +1009,7 @@
 			</button>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+				class="flex items-center gap-2 rounded-md border border-white/30 bg-transparent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
 				onclick={onCancel}
 				aria-label="Cancel"
 			>
