@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ArrowRight, Check, Eraser, Hand, MousePointer, Pencil, Trash2, X } from '@lucide/svelte';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	export type AnnotationStroke = { points: { x: number; y: number }[]; color?: string; width?: number };
 	export type FlowNode = {
@@ -65,6 +66,56 @@
 	let arrows = $state<FlowArrow[]>(initialArrows);
 	let freeArrows = $state<FlowFreeArrow[]>(initialFreeArrows ?? []);
 	let mode = $state<'move' | 'arrow' | 'select' | 'markup'>('move');
+	let suppressHoverFor = $state<'hand' | 'arrow' | 'pencil' | 'eraser' | null>(null);
+
+	function handleHandClick() {
+		const wasActive = mode === 'move';
+		mode = wasActive ? 'select' : 'move';
+		suppressHoverFor = wasActive ? 'hand' : null;
+		selectedScreenId = null;
+		drawingArrow = null;
+		selectedArrow = null;
+		editingArrow = null;
+	}
+	function handleArrowClick() {
+		const wasActive = mode === 'arrow';
+		mode = wasActive ? 'select' : 'arrow';
+		suppressHoverFor = wasActive ? 'arrow' : null;
+		selectedScreenId = null;
+		drawingArrow = null;
+		selectedArrow = null;
+		editingArrow = null;
+	}
+	function handlePencilClick() {
+		const wasActive = mode === 'markup' && markupDrawMode === 'draw';
+		if (wasActive) {
+			mode = 'select';
+			suppressHoverFor = 'pencil';
+		} else {
+			mode = 'markup';
+			markupDrawMode = 'draw';
+			suppressHoverFor = null;
+		}
+		selectedScreenId = null;
+		drawingArrow = null;
+		selectedArrow = null;
+		editingArrow = null;
+	}
+	function handleEraserClick() {
+		const wasActive = mode === 'markup' && markupDrawMode === 'erase';
+		if (wasActive) {
+			mode = 'select';
+			suppressHoverFor = 'eraser';
+		} else {
+			mode = 'markup';
+			markupDrawMode = 'erase';
+			suppressHoverFor = null;
+		}
+		selectedScreenId = null;
+		drawingArrow = null;
+		selectedArrow = null;
+		editingArrow = null;
+	}
 	let selectedScreenId = $state<number | null>(null);
 	let selectedArrow = $state<{ type: 'screen'; index: number } | { type: 'free'; index: number } | null>(null);
 	let canvasMarkupStrokes = $state<AnnotationStroke[]>(
@@ -557,7 +608,7 @@
 	});
 
 	$effect(() => {
-		if (!canvasRef || !markupCanvasRef || mode !== 'markup') return;
+		if (!canvasRef || !markupCanvasRef || (mode !== 'markup' && canvasMarkupStrokes.length === 0)) return;
 		redrawMarkupCanvas();
 		const ro = new ResizeObserver(redrawMarkupCanvas);
 		ro.observe(canvasRef);
@@ -567,7 +618,7 @@
 	$effect(() => {
 		canvasMarkupStrokes;
 		markupCurrentStroke;
-		if (mode === 'markup' && markupCanvasRef) redrawMarkupCanvas();
+		if (markupCanvasRef && (mode === 'markup' || canvasMarkupStrokes.length > 0)) redrawMarkupCanvas();
 	});
 
 	async function handleSave() {
@@ -862,11 +913,15 @@
 				{/if}
 			{/each}
 
-			<!-- Canvas-level markup overlay - draw directly on the flow -->
-			{#if mode === 'markup'}
+			<!-- Canvas-level markup overlay - always visible when there are strokes, interactive in markup mode -->
+			{#if mode === 'markup' || canvasMarkupStrokes.length > 0}
 				<canvas
 					bind:this={markupCanvasRef}
-					class="absolute inset-0 z-10 touch-none {markupDrawMode === 'erase' ? 'cursor-cell' : 'cursor-crosshair'}"
+					class="absolute inset-0 z-10 touch-none {mode !== 'markup'
+						? 'pointer-events-none'
+						: markupDrawMode === 'erase'
+							? 'cursor-cell'
+							: 'cursor-crosshair'}"
 					style="left: 0; top: 0; width: 100%; height: 100%;"
 					onpointerdown={handleMarkupPointerDown}
 					onpointerleave={handleMarkupPointerUp}
@@ -906,8 +961,8 @@
 					<button
 						type="button"
 						class="flex h-7 min-w-7 items-center justify-center rounded-md px-2 text-xs font-medium transition-colors {markupWidth === w
-							? 'bg-white/30 text-white'
-							: 'text-white/80 hover:bg-white/20'}"
+							? 'bg-primary text-primary-foreground'
+							: 'text-white/70 hover:bg-white/10 hover:text-white/90'}"
 						onclick={() => (markupWidth = w)}
 						aria-label="Stroke width {w}"
 						aria-pressed={markupWidth === w}
@@ -920,70 +975,122 @@
 	{/if}
 
 	<!-- Bottom toolbar -->
-	<div
-		class="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center gap-3 rounded-lg bg-black/60 px-4 py-3"
-		role="toolbar"
-	>
-		<div class="flex flex-nowrap items-center gap-2">
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'select'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'select', selectedScreenId = null, drawingArrow = null, editingArrow = null)}
-				aria-label="Select arrows"
-				aria-pressed={mode === 'select'}
-			>
-				<MousePointer class="size-4" />
-			</button>
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'move'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'move', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
-				aria-label="Move screens"
-				aria-pressed={mode === 'move'}
-			>
-				<Hand class="size-4" />
-			</button>
-		</div>
-		<div class="h-4 w-px bg-white/30" role="separator"></div>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'arrow'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'arrow', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
-				aria-label="Add arrow"
-				aria-pressed={mode === 'arrow'}
-			>
-				<ArrowRight class="size-4" />
-			</button>
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'draw'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'markup', markupDrawMode = 'draw', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
-				aria-label="Mark up"
-				aria-pressed={mode === 'markup' && markupDrawMode === 'draw'}
-			>
-				<Pencil class="size-4" />
-			</button>
-			<button
-				type="button"
-				class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'erase'
-					? 'bg-white/20 text-white'
-					: 'text-white/80 hover:bg-white/20'}"
-				onclick={() => (mode = 'markup', markupDrawMode = 'erase', selectedScreenId = null, drawingArrow = null, selectedArrow = null, editingArrow = null)}
-				aria-label="Eraser"
-				aria-pressed={mode === 'markup' && markupDrawMode === 'erase'}
-			>
-				<Eraser class="size-4" />
-			</button>
-		</div>
+	<Tooltip.Provider delayDuration={600}>
+		<div
+			class="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center gap-3 rounded-lg bg-black/60 px-4 py-3"
+			role="toolbar"
+		>
+			<div class="flex flex-nowrap items-center gap-2">
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<button
+							type="button"
+							class="rounded-md p-2 transition-colors {mode === 'select'
+								? 'bg-primary text-primary-foreground'
+								: 'text-white/70 hover:bg-white/10 hover:text-white/90'}"
+							onclick={() => (mode = 'select', suppressHoverFor = null, selectedScreenId = null, drawingArrow = null, editingArrow = null)}
+							aria-label="Select arrows"
+							aria-pressed={mode === 'select'}
+						>
+							<MousePointer class="size-4" />
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" class="z-[10000] bg-black/95 text-white border border-white/10 shadow-lg [&_kbd]:bg-white/20 [&_kbd]:text-white" arrowClasses="!bg-black/95">
+						Select Tool <kbd class="ml-1 rounded px-1.5 py-0.5 font-mono text-[10px]">V</kbd>
+					</Tooltip.Content>
+				</Tooltip.Root>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<button
+							type="button"
+							class="rounded-md p-2 transition-colors {mode === 'move'
+								? 'bg-primary text-primary-foreground'
+								: 'text-white/70 hover:bg-white/10 hover:text-white/90'} {suppressHoverFor === 'hand'
+								? '[&.suppress-hover]:hover:!bg-transparent [&.suppress-hover]:hover:!text-white/70'
+								: ''}"
+							class:suppress-hover={suppressHoverFor === 'hand'}
+							onclick={handleHandClick}
+							onpointerleave={() => (suppressHoverFor = suppressHoverFor === 'hand' ? null : suppressHoverFor)}
+							aria-label="Move screens"
+							aria-pressed={mode === 'move'}
+						>
+							<Hand class="size-4" />
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" class="z-[10000] bg-black/95 text-white border border-white/10 shadow-lg [&_kbd]:bg-white/20 [&_kbd]:text-white" arrowClasses="!bg-black/95">
+						Hand Tool <kbd class="ml-1 rounded px-1.5 py-0.5 font-mono text-[10px]">H</kbd>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			</div>
+			<div class="h-4 w-px bg-white/30" role="separator"></div>
+			<div class="flex items-center gap-2">
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<button
+							type="button"
+							class="rounded-md p-2 transition-colors {mode === 'arrow'
+								? 'bg-primary text-primary-foreground'
+								: 'text-white/70 hover:bg-white/10 hover:text-white/90'} {suppressHoverFor === 'arrow'
+								? '[&.suppress-hover]:hover:!bg-transparent [&.suppress-hover]:hover:!text-white/70'
+								: ''}"
+							class:suppress-hover={suppressHoverFor === 'arrow'}
+							onclick={handleArrowClick}
+							onpointerleave={() => (suppressHoverFor = suppressHoverFor === 'arrow' ? null : suppressHoverFor)}
+							aria-label="Add arrow"
+							aria-pressed={mode === 'arrow'}
+						>
+							<ArrowRight class="size-4" />
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" class="z-[10000] bg-black/95 text-white border border-white/10 shadow-lg [&_kbd]:bg-white/20 [&_kbd]:text-white" arrowClasses="!bg-black/95">
+						Arrow <kbd class="ml-1 rounded px-1.5 py-0.5 font-mono text-[10px]">A</kbd>
+					</Tooltip.Content>
+				</Tooltip.Root>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<button
+							type="button"
+							class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'draw'
+								? 'bg-primary text-primary-foreground'
+								: 'text-white/70 hover:bg-white/10 hover:text-white/90'} {suppressHoverFor === 'pencil'
+								? '[&.suppress-hover]:hover:!bg-transparent [&.suppress-hover]:hover:!text-white/70'
+								: ''}"
+							class:suppress-hover={suppressHoverFor === 'pencil'}
+							onclick={handlePencilClick}
+							onpointerleave={() => (suppressHoverFor = suppressHoverFor === 'pencil' ? null : suppressHoverFor)}
+							aria-label="Mark up"
+							aria-pressed={mode === 'markup' && markupDrawMode === 'draw'}
+						>
+							<Pencil class="size-4" />
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" class="z-[10000] bg-black/95 text-white border border-white/10 shadow-lg [&_kbd]:bg-white/20 [&_kbd]:text-white" arrowClasses="!bg-black/95">
+						Marker <kbd class="ml-1 rounded px-1.5 py-0.5 font-mono text-[10px]">M</kbd>
+					</Tooltip.Content>
+				</Tooltip.Root>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<button
+							type="button"
+							class="rounded-md p-2 transition-colors {mode === 'markup' && markupDrawMode === 'erase'
+								? 'bg-primary text-primary-foreground'
+								: 'text-white/70 hover:bg-white/10 hover:text-white/90'} {suppressHoverFor === 'eraser'
+								? '[&.suppress-hover]:hover:!bg-transparent [&.suppress-hover]:hover:!text-white/70'
+								: ''}"
+							class:suppress-hover={suppressHoverFor === 'eraser'}
+							onclick={handleEraserClick}
+							onpointerleave={() => (suppressHoverFor = suppressHoverFor === 'eraser' ? null : suppressHoverFor)}
+							aria-label="Eraser"
+							aria-pressed={mode === 'markup' && markupDrawMode === 'erase'}
+						>
+							<Eraser class="size-4" />
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" class="z-[10000] bg-black/95 text-white border border-white/10 shadow-lg [&_kbd]:bg-white/20 [&_kbd]:text-white" arrowClasses="!bg-black/95">
+						Eraser <kbd class="ml-1 rounded px-1.5 py-0.5 font-mono text-[10px]">E</kbd>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			</div>
 		<div class="h-4 w-px bg-white/30" role="separator"></div>
 		{#if mode === 'select' && selectedArrow}
 			<button
@@ -1018,4 +1125,5 @@
 			</button>
 		</div>
 	</div>
+	</Tooltip.Provider>
 </div>
