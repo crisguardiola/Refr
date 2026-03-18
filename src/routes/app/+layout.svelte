@@ -206,11 +206,12 @@
 
 <Sidebar.Provider>
 	<div class="app-layout flex h-svh w-full flex-col overflow-hidden">
-		<AppTopBar user={data.user} />
+		<AppTopBar user={data.user} canViewBugs={data.canViewBugs ?? false} />
 		<div class="flex min-h-0 flex-1 overflow-hidden pt-[calc(var(--spacing-top-bar)+0.5rem)]">
 			<AppLeftSidebar
 				folders={data.folders ?? []}
 				counts={data.counts ?? { all: 0, uncategorised: 0, trash: 0 }}
+				canViewBugs={data.canViewBugs ?? false}
 			/>
 			<Sidebar.Inset class="min-h-0 overflow-hidden">
 				<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">

@@ -39,6 +39,8 @@
 			$page.url.pathname.startsWith('/app/folder/')
 	);
 
+	const isBugsPath = $derived($page.url.pathname === '/app/bugs');
+
 	const uploadAction = $derived($page.url.pathname + '?/uploadScreenshot');
 	const defaultFolderId = $derived.by(() => {
 		const id = $page.params.folderId;
@@ -107,19 +109,21 @@
 	class="flex min-h-0 min-w-0 flex-1 flex-col"
 	data-slot="app-center"
 >
-	<!-- Search bar: fixed at top, no scroll -->
-	<div class="z-20 flex min-h-[var(--content-header-height)] shrink-0 flex-col justify-center bg-background/95 px-8 pt-4 pb-6 backdrop-blur-xl">
-		<div>
-			<SearchAndFilterBar
-				{tags}
-				{tagCounts}
-				{filterStore}
-			/>
+	<!-- Search bar: fixed at top, no scroll (hidden on bugs page) -->
+	{#if !isBugsPath}
+		<div class="z-20 flex min-h-[var(--content-header-height)] shrink-0 flex-col justify-center bg-background/95 px-8 pt-4 pb-6 backdrop-blur-xl">
+			<div>
+				<SearchAndFilterBar
+					{tags}
+					{tagCounts}
+					{filterStore}
+				/>
+			</div>
 		</div>
-	</div>
+	{/if}
 	<!-- Content area: scrollbar only here, within screenshot area -->
 	<div
-		class="min-h-0 flex-1 overflow-y-auto p-8 pt-0 {isDragging ? 'ring-2 ring-primary ring-inset' : ''}"
+		class="min-h-0 flex-1 overflow-y-auto p-8 {isBugsPath ? 'pt-8' : 'pt-0'} {isDragging ? 'ring-2 ring-primary ring-inset' : ''}"
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}

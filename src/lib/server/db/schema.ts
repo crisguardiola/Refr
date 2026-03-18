@@ -54,6 +54,17 @@ export const flow = pgTable('flow', {
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
+export const bug = pgTable('bug', {
+	id: serial('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	note: text('note').notNull(),
+	reporterName: text('reporter_name'),
+	imageUrl: text('image_url'),
+	createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
 export const screenshotTag = pgTable(
 	'screenshot_tag',
 	{

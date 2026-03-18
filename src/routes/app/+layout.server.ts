@@ -3,6 +3,7 @@ import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { folder, screenshot, screenshotTag, tag } from '$lib/server/db/schema';
 import { eq, asc, and, isNull, isNotNull, sql } from 'drizzle-orm';
+import { env } from '$env/dynamic/private';
 
 export const load: LayoutServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -62,11 +63,16 @@ export const load: LayoutServerLoad = async (event) => {
 		tagCountRows.map((r) => [r.tagId, r.count])
 	) as Record<number, number>;
 
+	const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase();
+	const canViewBugs =
+		!adminEmail || (event.locals.user?.email?.toLowerCase() === adminEmail);
+
 	return {
 		user: event.locals.user,
 		folders: foldersWithCount,
 		tags,
 		tagCounts,
-		counts: { all: countAll, uncategorised: countUncategorised, favourites: countFavourites, trash: countTrash }
+		counts: { all: countAll, uncategorised: countUncategorised, favourites: countFavourites, trash: countTrash },
+		canViewBugs
 	};
 };

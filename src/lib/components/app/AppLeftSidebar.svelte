@@ -8,20 +8,23 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { FOLDER_DRAG_TYPE, SCREENSHOT_DRAG_TYPE, moveScreenshot, reorderFolders } from '$lib/move-screenshot.js';
-	import { Folder, FolderOpen, FolderPlus, GripVertical, Heart, Trash2 } from '@lucide/svelte';
+	import { Bug, Folder, FolderOpen, FolderPlus, GripVertical, Heart, Trash2 } from '@lucide/svelte';
 
 	let {
 		folders = [],
-		counts = { all: 0, uncategorised: 0, favourites: 0, trash: 0 }
+		counts = { all: 0, uncategorised: 0, favourites: 0, trash: 0 },
+		canViewBugs = false
 	}: {
 		folders?: { id: number; name: string; count: number }[];
 		counts?: { all: number; uncategorised: number; favourites: number; trash: number };
+		canViewBugs?: boolean;
 	} = $props();
 
 	const isAllSelected = $derived($page.url.pathname === '/app');
 	const isUncategorisedSelected = $derived($page.url.pathname === '/app/uncategorised');
 	const isFavouritesSelected = $derived($page.url.pathname === '/app/favourites');
 	const isTrashSelected = $derived($page.url.pathname === '/app/trash');
+	const isBugsSelected = $derived($page.url.pathname === '/app/bugs');
 	function isFolderSelected(id: number) {
 		return $page.url.pathname === `/app/folder/${id}`;
 	}
@@ -144,6 +147,18 @@
 						</Sidebar.MenuButton>
 						<Sidebar.MenuBadge>{counts.trash}</Sidebar.MenuBadge>
 					</Sidebar.MenuItem>
+					{#if canViewBugs}
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton
+								isActive={isBugsSelected}
+								tooltipContent="Bug reports"
+								onclick={() => goto('/app/bugs')}
+							>
+								<Bug class="size-4" />
+								<span>Bugs</span>
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+					{/if}
 				</Sidebar.Menu>
 			</Sidebar.GroupContent>
 		</Sidebar.Group>

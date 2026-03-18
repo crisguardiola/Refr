@@ -3,10 +3,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import BugReportDialog from '$lib/components/app/BugReportDialog.svelte';
 	import { theme } from '$lib/theme.js';
-	import { LogOut, Moon, Sun, User } from '@lucide/svelte';
+	import { Bug, LogOut, Moon, Sun, User } from '@lucide/svelte';
 
-	let { user }: { user: { name: string } } = $props();
+	let { user, canViewBugs = false }: { user: { name: string }; canViewBugs?: boolean } = $props();
+	let bugDialogOpen = $state(false);
 </script>
 
 <header
@@ -21,6 +23,14 @@
 		<a href="/app" class="text-lg font-semibold">Refr</a>
 	</div>
 	<div class="flex items-center gap-2">
+		<button
+			type="button"
+			class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+			aria-label="Report a bug"
+			onclick={() => (bugDialogOpen = true)}
+		>
+			<Bug class="size-4" />
+		</button>
 		<button
 			type="button"
 			class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -56,5 +66,6 @@
 				</Popover.Content>
 			</Popover.Portal>
 		</Popover.Root>
+		<BugReportDialog open={bugDialogOpen} onOpenChange={(o) => (bugDialogOpen = o)} {canViewBugs} />
 	</div>
 </header>
