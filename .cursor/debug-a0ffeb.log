@@ -1,0 +1,9 @@
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:handleFolderSelect","message":"handleFolderSelect called","data":{"value":"3","isSavingBefore":false},"timestamp":1773837255708,"hypothesisId":"A"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:start","message":"isSaving set to true","data":{"folderId":"3"},"timestamp":1773837255709,"hypothesisId":"C"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:finally","message":"isSaving set to false","data":{"folderId":"3"},"timestamp":1773837256860,"hypothesisId":"B"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:handleFolderSelect","message":"handleFolderSelect called","data":{"value":"","isSavingBefore":false},"timestamp":1773837260162,"hypothesisId":"A"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:start","message":"isSaving set to true","data":{"folderId":""},"timestamp":1773837260163,"hypothesisId":"C"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:finally","message":"isSaving set to false","data":{"folderId":""},"timestamp":1773837260948,"hypothesisId":"B"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:handleFolderSelect","message":"handleFolderSelect called","data":{"value":"","isSavingBefore":false},"timestamp":1773837291900,"hypothesisId":"A"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:start","message":"isSaving set to true","data":{"folderId":""},"timestamp":1773837291901,"hypothesisId":"C"}
+{"sessionId":"a0ffeb","location":"AppRightSidebar.svelte:updateScreenshot:finally","message":"isSaving set to false","data":{"folderId":""},"timestamp":1773837292931,"hypothesisId":"B"}

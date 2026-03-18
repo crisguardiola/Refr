@@ -7,7 +7,8 @@
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { ImageIcon, Trash2, Plus, X, Heart, Search, Maximize2, ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { ImageIcon, Trash2, Plus, X, Heart, Search, Maximize2, ChevronLeft, ChevronRight, ChevronDown } from '@lucide/svelte';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import AnnotationOverlay from '$lib/components/app/AnnotationOverlay.svelte';
 
@@ -46,6 +47,7 @@
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 
 	let folderId = $state<string>('');
+	let folderOpen = $state(false);
 	let addTagOpenFor = $state<'screen' | 'ui' | null>(null);
 	let tagSearchQuery = $state('');
 	let permanentDeleteOpen = $state(false);
@@ -129,6 +131,10 @@
 	);
 
 	const selectedTagIds = $derived(new Set((selectedScreenshot?.tags ?? []).map((t) => t.id)));
+
+	const folderLabel = $derived(
+		folderId ? (folders.find((f) => String(f.id) === folderId)?.name ?? 'Uncategorised') : 'Uncategorised'
+	);
 
 	const availableToAdd = $derived(
 		tags.filter((t) => !selectedTagIds.has(t.id))
@@ -217,10 +223,10 @@
 		}
 	}
 
-	function handleFolderChange(e: Event) {
-		const v = (e.target as HTMLSelectElement).value;
-		folderId = v;
-		updateScreenshot({ folderId: v, tagIds: [...selectedTagIds] });
+	function handleFolderSelect(value: string) {
+		folderId = value;
+		folderOpen = false;
+		updateScreenshot({ folderId: value, tagIds: [...selectedTagIds] });
 	}
 
 	function handleFavouriteToggle() {
@@ -293,9 +299,30 @@
 	data-slot="app-right-sidebar"
 >
 	{#if selectedScreenshot}
-		<div class="flex flex-col gap-6">
-			<div class="space-y-2">
-				<h3 class="text-sm font-semibold">Details</h3>
+		<div class="flex flex-col gap-8">
+			<div class="space-y-4">
+				<div class="flex items-center justify-between gap-2">
+					<div class="min-w-0">
+						<h3 class="text-lg font-semibold">Details</h3>
+						{#if formattedDate}
+							<p class="mt-0.5 text-sm text-muted-foreground">{formattedDate}</p>
+						{/if}
+					</div>
+					<button
+						type="button"
+						onclick={handleFavouriteToggle}
+						disabled={isSaving}
+						class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+						aria-label={selectedScreenshot.favourite ? 'Remove from favourites' : 'Add to favourites'}
+						aria-pressed={selectedScreenshot.favourite}
+					>
+						<Heart
+							class="size-5 transition-colors {selectedScreenshot.favourite
+								? 'fill-primary text-primary'
+								: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
+						/>
+					</button>
+				</div>
 				<div
 					bind:this={sidebarImageContainerRef}
 					class="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30 group"
@@ -346,10 +373,10 @@
 					{/if}
 				</div>
 			</div>
-			<dl class="space-y-3 text-sm">
+			<dl class="space-y-5 text-sm">
 				{#if selectedScreenshot.annotationData?.strokes?.length}
 					<div>
-						<dt class="text-muted-foreground">Annotations</dt>
+						<dt class="text-muted-foreground">Mark up</dt>
 						<dd class="mt-0.5">
 							<label class="flex cursor-pointer items-center gap-2">
 								<input
@@ -377,32 +404,6 @@
 					</dd>
 				</div>
 				<div>
-					<dt class="text-muted-foreground">Added</dt>
-					<dd class="mt-0.5 font-medium">{formattedDate}</dd>
-				</div>
-				<div>
-					<dt class="text-muted-foreground">Favourite</dt>
-					<dd class="mt-0.5">
-						<button
-							type="button"
-							onclick={handleFavouriteToggle}
-							disabled={isSaving}
-							class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-							aria-label={selectedScreenshot.favourite ? 'Remove from favourites' : 'Add to favourites'}
-							aria-pressed={selectedScreenshot.favourite}
-						>
-							<Heart
-								class="size-6 transition-colors {selectedScreenshot.favourite
-									? 'fill-primary text-primary'
-									: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
-							/>
-						</button>
-						<p class="mt-1 text-xs text-muted-foreground">
-							{selectedScreenshot.favourite ? 'Favourited' : 'Click to favourite'}
-						</p>
-					</dd>
-				</div>
-				<div>
 					<dt class="text-muted-foreground">Note</dt>
 					<dd class="mt-0.5">
 						<textarea
@@ -418,33 +419,62 @@
 				<div>
 					<dt class="text-muted-foreground">Folder</dt>
 					<dd class="mt-0.5">
-						<select
-							bind:value={folderId}
-							onchange={handleFolderChange}
-							disabled={isSaving}
-							class="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
-						>
-							<option value="">Uncategorised</option>
-							{#each folders as f (f.id)}
-								<option value={String(f.id)}>{f.name}</option>
-							{/each}
-						</select>
+						<Popover.Root bind:open={folderOpen}>
+							<Popover.Trigger
+								disabled={isSaving}
+								class="flex h-8 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-2 py-1 text-sm text-left font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed"
+							>
+								<span class="min-w-0 truncate">{folderLabel}</span>
+								<ChevronDown class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+							</Popover.Trigger>
+							<Popover.Portal>
+								<Popover.Content
+									align="start"
+									side="bottom"
+									sideOffset={4}
+									class="min-w-[var(--bits-floating-anchor-width)] w-[var(--bits-floating-anchor-width)] rounded-md border border-input bg-popover p-1 shadow-md"
+								>
+									<button
+										type="button"
+										onclick={() => handleFolderSelect('')}
+										class={cn(
+											'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm font-medium text-foreground transition-colors',
+											!folderId ? 'bg-muted/50' : 'hover:bg-muted/50'
+										)}
+									>
+										Uncategorised
+									</button>
+									{#each folders as f (f.id)}
+										<button
+											type="button"
+											onclick={() => handleFolderSelect(String(f.id))}
+											class={cn(
+												'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm font-medium text-foreground transition-colors',
+												folderId === String(f.id) ? 'bg-muted/50' : 'hover:bg-muted/50'
+											)}
+										>
+											{f.name}
+										</button>
+									{/each}
+								</Popover.Content>
+							</Popover.Portal>
+						</Popover.Root>
 					</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">Screens</dt>
 					<dd class="mt-0.5">
-						<div class="flex flex-wrap items-center gap-1.5">
+						<div class="flex flex-wrap items-center gap-2">
 							{#each screenTags as t (t.id)}
 								<span
-									class="inline-flex items-center gap-1 rounded-full bg-muted pl-2 pr-1 py-0.5 text-xs"
+									class="inline-flex items-center gap-1 rounded-md border border-input bg-muted/50 pl-2 pr-1 py-1 text-xs font-medium"
 								>
 									{t.label}
 									<button
 										type="button"
 										onclick={() => removeTag(t.id)}
 										disabled={isSaving}
-										class="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+										class="rounded p-0.5 hover:bg-muted-foreground/20 transition-colors"
 										aria-label="Remove {t.label}"
 									>
 										<X class="size-3" />
@@ -460,32 +490,29 @@
 										addTagOpenFor = addTagOpenFor === 'screen' ? null : 'screen';
 									}}
 									disabled={isSaving}
-									class="inline-flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 p-1 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
+									class="inline-flex items-center justify-center rounded-md border border-dashed border-input p-1.5 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
 									aria-label="Add screen"
 								>
 									<Plus class="size-3.5 text-muted-foreground" />
 								</button>
 							</div>
 						</div>
-						{#if screenTags.length === 0 && addTagOpenFor !== 'screen'}
-							<p class="mt-1 text-xs text-muted-foreground">No screens. Click + to add.</p>
-						{/if}
 					</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">UI Elements</dt>
 					<dd class="mt-0.5">
-						<div class="flex flex-wrap items-center gap-1.5">
+						<div class="flex flex-wrap items-center gap-2">
 							{#each uiElementTags as t (t.id)}
 								<span
-									class="inline-flex items-center gap-1 rounded-full bg-muted pl-2 pr-1 py-0.5 text-xs"
+									class="inline-flex items-center gap-1 rounded-md border border-input bg-muted/50 pl-2 pr-1 py-1 text-xs font-medium"
 								>
 									{t.label}
 									<button
 										type="button"
 										onclick={() => removeTag(t.id)}
 										disabled={isSaving}
-										class="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+										class="rounded p-0.5 hover:bg-muted-foreground/20 transition-colors"
 										aria-label="Remove {t.label}"
 									>
 										<X class="size-3" />
@@ -501,16 +528,13 @@
 										addTagOpenFor = addTagOpenFor === 'ui' ? null : 'ui';
 									}}
 									disabled={isSaving}
-									class="inline-flex items-center justify-center rounded-full border border-dashed border-muted-foreground/40 p-1 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
+									class="inline-flex items-center justify-center rounded-md border border-dashed border-input p-1.5 hover:border-muted-foreground/60 hover:bg-muted/50 transition-colors"
 									aria-label="Add UI element"
 								>
 									<Plus class="size-3.5 text-muted-foreground" />
 								</button>
 							</div>
 						</div>
-						{#if uiElementTags.length === 0 && addTagOpenFor !== 'ui'}
-							<p class="mt-1 text-xs text-muted-foreground">No UI elements. Click + to add.</p>
-						{/if}
 					</dd>
 				</div>
 				{#if addTagOpenFor && tagDropdownStyle}
