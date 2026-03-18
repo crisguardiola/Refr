@@ -2,6 +2,10 @@ import { db } from '$lib/server/db';
 import { folder, screenshotTag, tag } from '$lib/server/db/schema';
 import { inArray } from 'drizzle-orm';
 
+export type AnnotationData = {
+	strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[];
+};
+
 type ScreenshotRow = {
 	id: number;
 	folderId: number | null;
@@ -10,6 +14,7 @@ type ScreenshotRow = {
 	fileName: string;
 	note: string | null;
 	favourite: boolean | null;
+	annotationData?: unknown;
 	createdAt: Date;
 	deletedAt: Date | null;
 };

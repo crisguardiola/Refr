@@ -7,7 +7,9 @@
 	import AppCenterArea from '$lib/components/app/AppCenterArea.svelte';
 	import AppRightSidebar from '$lib/components/app/AppRightSidebar.svelte';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
-	import { X, ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { X, ChevronLeft, ChevronRight, Pencil } from '@lucide/svelte';
+	import AnnotationCanvas from '$lib/components/app/AnnotationCanvas.svelte';
+	import AnnotationOverlay from '$lib/components/app/AnnotationOverlay.svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
@@ -18,6 +20,7 @@
 		fileName: string;
 		note?: string | null;
 		favourite?: boolean;
+		annotationData?: { strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[] } | null;
 		createdAt: Date;
 		folder?: { id: number; name: string } | null;
 		tags?: { id: number; dimension: string; label: string; sortOrder: number }[];
@@ -25,6 +28,9 @@
 
 	let selectedScreenshot = $state<Screenshot | null>(null);
 	let fullscreenScreenshot = $state<Screenshot | null>(null);
+	let fullscreenEditMode = $state(false);
+	let fullscreenContainerRef: HTMLDivElement;
+	let fullscreenImgRef: HTMLImageElement;
 
 	setContext('selectedScreenshot', {
 		get selected() {
@@ -72,6 +78,7 @@
 		if (prevFullscreen) {
 			fullscreenScreenshot = prevFullscreen;
 			selectedScreenshot = prevFullscreen;
+			fullscreenEditMode = false;
 		}
 	}
 
@@ -79,6 +86,28 @@
 		if (nextFullscreen) {
 			fullscreenScreenshot = nextFullscreen;
 			selectedScreenshot = nextFullscreen;
+			fullscreenEditMode = false;
+		}
+	}
+
+	async function handleSaveAnnotations(data: { strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[] }) {
+		if (!fullscreenScreenshot) return;
+		const formData = new FormData();
+		formData.append('id', String(fullscreenScreenshot.id));
+		formData.append('folderId', fullscreenScreenshot.folder?.id != null ? String(fullscreenScreenshot.folder.id) : '');
+		formData.append('tags', (fullscreenScreenshot.tags ?? []).map((t) => t.id).join(','));
+		formData.append('annotationData', JSON.stringify(data));
+		try {
+			const res = await fetch('/app/screenshot/update', { method: 'POST', body: formData });
+			const json = await res.json();
+			if (json?.success) {
+				fullscreenScreenshot = { ...fullscreenScreenshot, annotationData: data };
+				selectedScreenshot = fullscreenScreenshot;
+				fullscreenEditMode = false;
+				await import('$app/navigation').then((m) => m.invalidateAll());
+			}
+		} catch (err) {
+			console.error('Save annotations failed:', err);
 		}
 	}
 
@@ -89,14 +118,19 @@
 			if (inInput && !fullscreenScreenshot) return;
 
 			if (fullscreenScreenshot) {
-				if (e.key === 'Escape') fullscreenScreenshot = null;
-				if (e.key === 'ArrowLeft') {
-					e.preventDefault();
-					goFullscreenPrev();
+				if (e.key === 'Escape') {
+					if (fullscreenEditMode) fullscreenEditMode = false;
+					else fullscreenScreenshot = null;
 				}
-				if (e.key === 'ArrowRight') {
-					e.preventDefault();
-					goFullscreenNext();
+				if (!fullscreenEditMode) {
+					if (e.key === 'ArrowLeft') {
+						e.preventDefault();
+						goFullscreenPrev();
+					}
+					if (e.key === 'ArrowRight') {
+						e.preventDefault();
+						goFullscreenNext();
+					}
 				}
 				return;
 			}
@@ -149,22 +183,39 @@
 			aria-modal="true"
 			aria-label="Screenshot fullscreen view"
 			tabindex="-1"
-			class="fixed inset-0 z-[9999] flex flex-col bg-black/90 p-4"
-			onclick={() => (fullscreenScreenshot = null)}
-			onkeydown={(e) => e.key === 'Escape' && (fullscreenScreenshot = null)}
+			class="fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-black/90 p-4"
+			onclick={() => !fullscreenEditMode && (fullscreenScreenshot = null)}
+			onkeydown={(e) => e.key === 'Escape' && (fullscreenEditMode ? (fullscreenEditMode = false) : (fullscreenScreenshot = null))}
 		>
-			<button
-				type="button"
-				class="absolute right-4 top-4 z-10 rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-				aria-label="Close fullscreen"
-				onclick={(e) => {
-					e.stopPropagation();
-					fullscreenScreenshot = null;
-				}}
-			>
-				<X class="size-6" />
-			</button>
-			{#if prevFullscreen}
+			<div class="absolute right-4 top-4 z-10 flex gap-2">
+				{#if !fullscreenEditMode}
+					<button
+						type="button"
+						class="flex items-center gap-2 rounded-full px-4 py-2 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+						aria-label="Annotate"
+						onclick={(e) => {
+							e.stopPropagation();
+							fullscreenEditMode = true;
+						}}
+					>
+						<Pencil class="size-5" />
+						<span>Annotate</span>
+					</button>
+				{/if}
+				<button
+					type="button"
+					class="rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+					aria-label="Close fullscreen"
+					onclick={(e) => {
+						e.stopPropagation();
+						fullscreenScreenshot = null;
+						fullscreenEditMode = false;
+					}}
+				>
+					<X class="size-6" />
+				</button>
+			</div>
+			{#if prevFullscreen && !fullscreenEditMode}
 				<button
 					type="button"
 					class="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center rounded-full size-12 bg-black/60 text-white hover:bg-black/80 transition-colors border border-white/20"
@@ -177,7 +228,7 @@
 					<ChevronLeft class="size-8" />
 				</button>
 			{/if}
-			{#if nextFullscreen}
+			{#if nextFullscreen && !fullscreenEditMode}
 				<button
 					type="button"
 					class="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center rounded-full size-12 bg-black/60 text-white hover:bg-black/80 transition-colors border border-white/20"
@@ -191,16 +242,37 @@
 				</button>
 			{/if}
 			<div
-				class="min-h-0 flex-1 flex items-center justify-center"
+				class="relative min-h-0 flex-1 flex items-center justify-center overflow-hidden"
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
 				role="presentation"
 			>
-				<img
-					src={cloudinaryUrl(fullscreenScreenshot.url, 'fullscreen')}
-					alt={fullscreenScreenshot.fileName}
-					class="max-h-full max-w-full w-auto h-auto object-contain"
-				/>
+				{#if fullscreenEditMode}
+					<AnnotationCanvas
+						key={fullscreenScreenshot.id}
+						imageSrc={cloudinaryUrl(fullscreenScreenshot.url, 'fullscreen')}
+						imageAlt={fullscreenScreenshot.fileName}
+						initialData={fullscreenScreenshot.annotationData ?? undefined}
+						onSave={handleSaveAnnotations}
+						onCancel={() => (fullscreenEditMode = false)}
+					/>
+				{:else}
+					<div bind:this={fullscreenContainerRef} class="relative size-full flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+						<img
+							bind:this={fullscreenImgRef}
+							src={cloudinaryUrl(fullscreenScreenshot.url, 'fullscreen')}
+							alt={fullscreenScreenshot.fileName}
+							class="max-h-full max-w-full w-auto h-auto object-contain"
+						/>
+						{#if fullscreenScreenshot.annotationData?.strokes?.length}
+							<AnnotationOverlay
+								annotationData={fullscreenScreenshot.annotationData}
+								containerRef={fullscreenContainerRef}
+								imageRef={fullscreenImgRef}
+							/>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}

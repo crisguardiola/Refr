@@ -65,10 +65,22 @@ export const POST: RequestHandler = async (event) => {
 		favourite = favouriteRaw === '1' || favouriteRaw.toLowerCase() === 'true';
 	}
 
+	const annotationDataRaw = formData.get('annotationData');
+	const annotationDataProvided = formData.has('annotationData');
+	let annotationData: unknown = undefined;
+	if (annotationDataProvided && typeof annotationDataRaw === 'string' && annotationDataRaw.trim()) {
+		try {
+			annotationData = JSON.parse(annotationDataRaw) as unknown;
+		} catch {
+			// ignore invalid JSON
+		}
+	}
+
 	const updateData: Record<string, unknown> = { folderId };
 	if (note !== undefined) updateData.note = note;
 	if (fileName !== undefined) updateData.fileName = fileName;
 	if (favourite !== undefined) updateData.favourite = favourite;
+	if (annotationData !== undefined) updateData.annotationData = annotationData;
 
 	await db.update(screenshot).set(updateData).where(eq(screenshot.id, id));
 

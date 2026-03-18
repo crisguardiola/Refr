@@ -9,6 +9,7 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { ImageIcon, Trash2, Plus, X, Heart, Search, Maximize2, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import AnnotationOverlay from '$lib/components/app/AnnotationOverlay.svelte';
 
 	type Folder = { id: number; name: string; count?: number };
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
@@ -21,6 +22,7 @@
 		fileName: string;
 		note?: string | null;
 		favourite?: boolean;
+		annotationData?: { strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[] } | null;
 		createdAt: Date | string;
 		folder?: { id: number; name: string } | null;
 		tags?: Tag[];
@@ -55,6 +57,9 @@
 	let tagDropdownStyle = $state<{ top: string; left: string; width: string } | null>(null);
 	let localFileName = $state('');
 	let localNote = $state('');
+	let showAnnotations = $state(true);
+	let sidebarImageContainerRef: HTMLDivElement;
+	let sidebarImgRef: HTMLImageElement;
 
 	$effect(() => {
 		if (!addTagOpenFor) return;
@@ -291,7 +296,10 @@
 		<div class="flex flex-col gap-6">
 			<div class="space-y-2">
 				<h3 class="text-sm font-semibold">Details</h3>
-				<div class="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30 group">
+				<div
+					bind:this={sidebarImageContainerRef}
+					class="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30 group"
+				>
 					<button
 						type="button"
 						onclick={openImage}
@@ -324,11 +332,30 @@
 						</div>
 					{/if}
 					<img
+						bind:this={sidebarImgRef}
 						src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
 						alt={selectedScreenshot.fileName}
 						class="size-full object-cover"
 					/>
+					{#if showAnnotations && selectedScreenshot.annotationData?.strokes?.length && sidebarImageContainerRef && sidebarImgRef}
+						<AnnotationOverlay
+							annotationData={selectedScreenshot.annotationData}
+							containerRef={sidebarImageContainerRef}
+							imageRef={sidebarImgRef}
+						/>
+					{/if}
 				</div>
+				{#if selectedScreenshot.annotationData?.strokes?.length}
+					<label class="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+						<input
+							type="checkbox"
+							bind:checked={showAnnotations}
+							class="rounded border-input"
+							aria-label="Show annotations"
+						/>
+						<span>Show annotations</span>
+					</label>
+				{/if}
 			</div>
 			<dl class="space-y-3 text-sm">
 				<div>
