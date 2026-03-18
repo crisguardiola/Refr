@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, X } from '@lucide/svelte';
+	import { Check, X, Undo2, Redo2, Eraser, Pencil } from '@lucide/svelte';
 
 	export type AnnotationStroke = {
 		points: { x: number; y: number }[];
@@ -10,6 +10,15 @@
 	export type AnnotationData = {
 		strokes?: AnnotationStroke[];
 	};
+
+	const COLORS = [
+		{ value: 'rgb(0, 200, 160)', label: 'Teal' },
+		{ value: '#f472b6', label: 'Rose' },
+		{ value: '#f8fafc', label: 'White' },
+		{ value: '#334155', label: 'Slate' }
+	] as const;
+
+	const STROKE_WIDTHS = [2, 4, 6, 8] as const;
 
 	let {
 		imageSrc = '',
@@ -29,14 +38,23 @@
 	let canvasRef: HTMLCanvasElement;
 	let imgRef: HTMLImageElement;
 
-	const DEFAULT_COLOR = '#ffffff';
-	const DEFAULT_WIDTH = 3;
+	const DEFAULT_COLOR = 'rgb(0, 200, 160)';
+	const DEFAULT_WIDTH = 4;
 
 	let strokes = $state<AnnotationStroke[]>(
 		initialData?.strokes ? [...initialData.strokes.map((s) => ({ ...s, points: [...s.points] }))] : []
 	);
+	let history = $state<AnnotationStroke[][]>([]);
+	let redoStack = $state<AnnotationStroke[][]>([]);
+	let selectedColor = $state(DEFAULT_COLOR);
+	let selectedWidth = $state(DEFAULT_WIDTH);
+	let mode = $state<'draw' | 'erase'>('draw');
 	let isDrawing = $state(false);
 	let currentStroke = $state<{ x: number; y: number }[]>([]);
+
+	const canUndo = $derived(history.length > 0);
+	const canRedo = $derived(redoStack.length > 0);
+	const ERASER_THRESHOLD = 0.04; // normalized distance to hit a stroke
 
 	function getRects() {
 		if (!imgRef || !containerRef) return null;
@@ -55,6 +73,37 @@
 		const x = (clientX - img.left) / img.width;
 		const y = (clientY - img.top) / img.height;
 		return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+	}
+
+	function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+		const dx = x2 - x1;
+		const dy = y2 - y1;
+		const len2 = dx * dx + dy * dy;
+		if (len2 === 0) return Math.hypot(px - x1, py - y1);
+		let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+		t = Math.max(0, Math.min(1, t));
+		const projX = x1 + t * dx;
+		const projY = y1 + t * dy;
+		return Math.hypot(px - projX, py - projY);
+	}
+
+	function findStrokeAt(nx: number, ny: number): number {
+		let bestIdx = -1;
+		let bestDist = ERASER_THRESHOLD;
+		for (let i = 0; i < strokes.length; i++) {
+			const stroke = strokes[i];
+			if (stroke.points.length < 2) continue;
+			for (let j = 0; j < stroke.points.length - 1; j++) {
+				const p1 = stroke.points[j];
+				const p2 = stroke.points[j + 1];
+				const d = distToSegment(nx, ny, p1.x, p1.y, p2.x, p2.y);
+				if (d < bestDist) {
+					bestDist = d;
+					bestIdx = i;
+				}
+			}
+		}
+		return bestIdx;
 	}
 
 	function toCanvasCoords(nx: number, ny: number): { x: number; y: number } {
@@ -92,8 +141,8 @@
 			ctx.stroke();
 		}
 		if (currentStroke.length >= 2) {
-			ctx.strokeStyle = color;
-			ctx.lineWidth = width;
+			ctx.strokeStyle = selectedColor;
+			ctx.lineWidth = selectedWidth;
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
 			ctx.beginPath();
@@ -134,10 +183,21 @@
 	function handlePointerDown(e: PointerEvent) {
 		e.preventDefault();
 		const pt = toNormalized(e.clientX, e.clientY);
-		if (pt) {
-			isDrawing = true;
-			currentStroke = [pt];
+		if (!pt) return;
+
+		if (mode === 'erase') {
+			const idx = findStrokeAt(pt.x, pt.y);
+			if (idx >= 0) {
+				history = [...history, strokes];
+				redoStack = [];
+				strokes = strokes.filter((_, i) => i !== idx);
+				redraw();
+			}
+			return;
 		}
+
+		isDrawing = true;
+		currentStroke = [pt];
 	}
 
 	function handlePointerMove(e: PointerEvent) {
@@ -151,11 +211,29 @@
 
 	function handlePointerUp() {
 		if (isDrawing && currentStroke.length > 0) {
-			strokes = [...strokes, { points: currentStroke, color: DEFAULT_COLOR, width: DEFAULT_WIDTH }];
+			history = [...history, strokes];
+			redoStack = [];
+			strokes = [...strokes, { points: currentStroke, color: selectedColor, width: selectedWidth }];
 			currentStroke = [];
 			isDrawing = false;
 			redraw();
 		}
+	}
+
+	function handleUndo() {
+		if (history.length === 0) return;
+		redoStack = [...redoStack, strokes];
+		strokes = history[history.length - 1];
+		history = history.slice(0, -1);
+		redraw();
+	}
+
+	function handleRedo() {
+		if (redoStack.length === 0) return;
+		history = [...history, strokes];
+		strokes = redoStack[redoStack.length - 1];
+		redoStack = redoStack.slice(0, -1);
+		redraw();
 	}
 
 	function handlePointerLeave() {
@@ -185,7 +263,7 @@
 	/>
 	<canvas
 		bind:this={canvasRef}
-		class="absolute inset-0 cursor-crosshair touch-none"
+		class="absolute inset-0 touch-none {mode === 'erase' ? 'cursor-cell' : 'cursor-crosshair'}"
 		style="width: 100%; height: 100%;"
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
@@ -195,26 +273,110 @@
 		aria-label="Annotation canvas"
 	></canvas>
 	<div
-		class="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg bg-black/60 p-2"
+		class="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-nowrap items-center justify-between gap-3 rounded-lg bg-black/60 p-3"
 		role="toolbar"
 	>
-		<button
-			type="button"
-			class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
-			onclick={handleSave}
-			aria-label="Save annotations"
-		>
-			<Check class="size-4" />
-			Save
-		</button>
-		<button
-			type="button"
-			class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
-			onclick={handleCancel}
-			aria-label="Cancel"
-		>
-			<X class="size-4" />
-			Cancel
-		</button>
+		<div class="flex flex-nowrap items-center gap-3">
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				class="rounded-md p-2 transition-colors {mode === 'draw'
+					? 'bg-white/20 text-white'
+					: 'text-white/80 hover:bg-white/20'}"
+				onclick={() => (mode = 'draw')}
+				aria-label="Draw"
+				aria-pressed={mode === 'draw'}
+			>
+				<Pencil class="size-4" />
+			</button>
+			<button
+				type="button"
+				class="rounded-md p-2 transition-colors {mode === 'erase'
+					? 'bg-white/20 text-white'
+					: 'text-white/80 hover:bg-white/20'}"
+				onclick={() => (mode = 'erase')}
+				aria-label="Eraser"
+				aria-pressed={mode === 'erase'}
+			>
+				<Eraser class="size-4" />
+			</button>
+		</div>
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				class="rounded-md p-2 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+				onclick={handleUndo}
+				disabled={!canUndo}
+				aria-label="Undo"
+			>
+				<Undo2 class="size-4" />
+			</button>
+			<button
+				type="button"
+				class="rounded-md p-2 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+				onclick={handleRedo}
+				disabled={!canRedo}
+				aria-label="Redo"
+			>
+				<Redo2 class="size-4" />
+			</button>
+		</div>
+		{#if mode === 'draw'}
+		<div class="flex items-center gap-1.5">
+			<span class="text-xs text-white/60">Color</span>
+			{#each COLORS as color}
+				<button
+					type="button"
+					class="size-7 rounded-full border-2 transition-all {selectedColor === color.value
+						? 'border-white scale-110'
+						: color.value === '#f8fafc'
+							? 'border-white/40 hover:scale-105'
+							: 'border-transparent hover:scale-105'}"
+					style="background-color: {color.value}"
+					onclick={() => (selectedColor = color.value)}
+					aria-label={color.label}
+					aria-pressed={selectedColor === color.value}
+				></button>
+			{/each}
+		</div>
+		<div class="flex items-center gap-1.5">
+			<span class="text-xs text-white/60">Size</span>
+			{#each STROKE_WIDTHS as w}
+				<button
+					type="button"
+					class="flex h-7 min-w-7 items-center justify-center rounded-md px-2 text-xs font-medium transition-colors {selectedWidth === w
+						? 'bg-white/30 text-white'
+						: 'text-white/80 hover:bg-white/20'}"
+					onclick={() => (selectedWidth = w)}
+					aria-label="Stroke width {w}"
+					aria-pressed={selectedWidth === w}
+				>
+					{w}
+				</button>
+			{/each}
+		</div>
+		{/if}
+		<div class="h-4 w-px bg-white/30" role="separator"></div>
+		</div>
+		<div class="flex items-center gap-2 ml-auto">
+			<button
+				type="button"
+				class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+				onclick={handleSave}
+				aria-label="Save annotations"
+			>
+				<Check class="size-4" />
+				Save
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+				onclick={handleCancel}
+				aria-label="Cancel"
+			>
+				<X class="size-4" />
+				Cancel
+			</button>
+		</div>
 	</div>
 </div>

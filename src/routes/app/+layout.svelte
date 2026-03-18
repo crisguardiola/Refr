@@ -191,15 +191,15 @@
 				{#if !fullscreenEditMode}
 					<button
 						type="button"
-						class="flex items-center gap-2 rounded-full px-4 py-2 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-						aria-label="Annotate"
+						class="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-xs transition-colors hover:bg-primary-hover"
+						aria-label="Mark up"
 						onclick={(e) => {
 							e.stopPropagation();
 							fullscreenEditMode = true;
 						}}
 					>
 						<Pencil class="size-5" />
-						<span>Annotate</span>
+						<span>Mark up</span>
 					</button>
 				{/if}
 				<button

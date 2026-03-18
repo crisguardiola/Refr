@@ -19,7 +19,7 @@
 		imageRef: HTMLImageElement;
 	} = $props();
 
-	const DEFAULT_COLOR = '#ffffff';
+	const DEFAULT_COLOR = 'rgb(0, 200, 160)';
 	const DEFAULT_WIDTH = 2;
 
 	let layoutTick = $state(0);

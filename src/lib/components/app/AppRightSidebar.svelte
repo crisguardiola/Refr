@@ -303,11 +303,11 @@
 					<button
 						type="button"
 						onclick={openImage}
-						class="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-ring"
-						aria-label="Open image"
+						class="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-md bg-black/60 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-ring"
+						aria-label="Open to Mark up"
 					>
 						<Maximize2 class="size-4 inline-block" />
-						<span class="ml-1.5">Open image</span>
+						<span class="ml-1.5">Open to Mark up</span>
 					</button>
 					{#if prevScreenshot || nextScreenshot}
 						<div class="absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -345,19 +345,24 @@
 						/>
 					{/if}
 				</div>
-				{#if selectedScreenshot.annotationData?.strokes?.length}
-					<label class="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-						<input
-							type="checkbox"
-							bind:checked={showAnnotations}
-							class="rounded border-input"
-							aria-label="Show annotations"
-						/>
-						<span>Show annotations</span>
-					</label>
-				{/if}
 			</div>
 			<dl class="space-y-3 text-sm">
+				{#if selectedScreenshot.annotationData?.strokes?.length}
+					<div>
+						<dt class="text-muted-foreground">Annotations</dt>
+						<dd class="mt-0.5">
+							<label class="flex cursor-pointer items-center gap-2">
+								<input
+									type="checkbox"
+									bind:checked={showAnnotations}
+									class="size-4 rounded border-input accent-primary focus:ring-2 focus:ring-ring focus:ring-offset-0"
+									aria-label="Show annotations on preview"
+								/>
+								<span class="font-medium">{showAnnotations ? 'Visible' : 'Hidden'} on preview</span>
+							</label>
+						</dd>
+					</div>
+				{/if}
 				<div>
 					<dt class="text-muted-foreground">File name</dt>
 					<dd class="mt-0.5">
