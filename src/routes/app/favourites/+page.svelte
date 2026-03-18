@@ -127,7 +127,22 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Favourites</h1>
+	<div class="sticky top-0 z-10 flex items-center justify-between gap-4 bg-background/95 backdrop-blur-xl pb-4 -mt-4 pt-4">
+		<h1 class="text-2xl font-semibold tracking-tight">Favourites</h1>
+		<div class="flex items-center gap-2 shrink-0" role="group" aria-label="Thumbnail zoom">
+			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">−</span>
+			<input
+				type="range"
+				min="0"
+				max="100"
+				value={$zoomStore}
+				oninput={(e) => zoomStore.set(Number((e.target as HTMLInputElement).value))}
+				class="h-1 w-24 min-w-0 cursor-pointer appearance-none rounded-full bg-muted accent-primary [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-colors [&::-webkit-slider-thumb]:hover:bg-primary/90 [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-primary"
+				aria-label="Zoom thumbnails"
+			/>
+			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">+</span>
+		</div>
+	</div>
 	{#if isEmpty}
 		<div class="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-muted/30 py-16 text-center">
 			<Heart class="size-12 text-muted-foreground/50" aria-hidden="true" />
@@ -148,7 +163,7 @@
 					{#each monthShots as shot (shot.id)}
 				<div
 					role="listitem"
-					class="group relative mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted shadow-sm transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing {selected?.id === shot.id
+					class="group relative mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted cursor-grab active:cursor-grabbing {selected?.id === shot.id
 						? 'border-2 border-primary'
 						: 'border border-border'}"
 					draggable="true"

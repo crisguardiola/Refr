@@ -18,13 +18,11 @@
 	let {
 		tags = [],
 		tagCounts = {},
-		filterStore,
-		thumbnailZoomStore
+		filterStore
 	}: {
 		tags?: Tag[];
 		tagCounts?: Record<number, number>;
 		filterStore: Writable<{ searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }>;
-		thumbnailZoomStore: Writable<number>;
 	} = $props();
 
 	let popoverOpen = $state(false);
@@ -215,7 +213,7 @@
 	<div class="flex items-center gap-2">
 		<Popover.Root bind:open={popoverOpen}>
 			<Popover.Trigger
-				class="relative flex flex-1 min-w-[200px] max-w-sm cursor-pointer list-none appearance-none rounded-md border border-input bg-background px-3 py-2 text-left text-sm hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:hidden"
+				class="relative flex flex-1 min-w-[200px] max-w-sm cursor-pointer list-none appearance-none rounded-full border border-input bg-background px-4 py-3 text-left text-sm hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:hidden"
 				aria-label="Search and filter screenshots"
 			>
 				<Search
@@ -241,7 +239,7 @@
 				<Popover.Content
 					align="start"
 					side="bottom"
-					class="w-[min(90vw,480px)] p-0"
+					class="w-[min(90vw,480px)] rounded-2xl p-0"
 					onclick={(e) => e.stopPropagation()}
 				>
 					<!-- Header: search + favourites chip -->
@@ -256,14 +254,14 @@
 								oninput={onSearchInput}
 								type="search"
 								placeholder="Search by name, note, screens, or UI elements..."
-								class="h-9 pl-9"
+								class="h-10 rounded-full pl-9"
 								aria-label="Search screenshots"
 								onclick={(e) => e.stopPropagation()}
 							/>
 						</div>
 						<button
 							type="button"
-							class="flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors {filter.favouritesOnly
+							class="flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-3 text-sm font-medium transition-colors {filter.favouritesOnly
 								? 'border-primary bg-primary/10 text-primary'
 								: 'border-input bg-muted/50 hover:bg-muted'}"
 						onclick={(e) => {
@@ -426,16 +424,14 @@
 				</Popover.Content>
 			</Popover.Portal>
 		</Popover.Root>
-	</div>
-	<div class="flex flex-wrap items-center gap-2">
 		{#if screenTags.length > 0}
 			<details
 				bind:this={screensRef}
 				bind:open={screensFilterOpen}
-				class="group"
+				class="group relative"
 			>
 				<summary
-					class="flex cursor-pointer list-none items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-input bg-background px-4 py-3 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					aria-label="Filter by screens"
 				>
 					<Filter class="size-4 text-muted-foreground" />
@@ -458,7 +454,7 @@
 					{/if}
 				</summary>
 				<div
-					class="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-md"
+					class="absolute left-0 top-full z-50 mt-2 max-h-64 min-w-[280px] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-lg"
 				>
 					{#if screenTags.length >= TAG_SEARCH_THRESHOLD}
 						<div class="relative mb-3">
@@ -497,11 +493,11 @@
 		<details
 			bind:this={uiElementsRef}
 			bind:open={uiElementsFilterOpen}
-			class="group"
+			class="group relative"
 		>
 			<summary
-				class="flex cursor-pointer list-none items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-				aria-label="Filter by UI elements"
+				class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-input bg-background px-4 py-3 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			aria-label="Filter by UI elements"
 			>
 				<Filter class="size-4 text-muted-foreground" />
 				<span>UI Elements</span>
@@ -523,7 +519,7 @@
 				{/if}
 			</summary>
 			<div
-				class="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-md"
+				class="absolute left-0 top-full z-50 mt-2 max-h-64 min-w-[280px] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-lg"
 			>
 				{#if showTagSearch}
 					<div class="relative mb-3">
@@ -568,11 +564,11 @@
 		<details
 			bind:this={favouritesRef}
 			bind:open={favouritesFilterOpen}
-			class="group"
+			class="group relative"
 		>
 			<summary
-				class="flex cursor-pointer list-none items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-				aria-label="Filter by favourites"
+				class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-input bg-background px-4 py-3 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			aria-label="Filter by favourites"
 			>
 				<Heart
 					class="size-4 transition-colors {filter.favouritesOnly ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground'}"
@@ -596,11 +592,11 @@
 				{/if}
 			</summary>
 			<div
-				class="mt-2 rounded-lg border border-border bg-background p-3 shadow-md"
+				class="absolute left-0 top-full z-50 mt-2 min-w-[200px] rounded-2xl border border-border bg-background p-3 shadow-lg"
 			>
 				<button
 					type="button"
-					class="w-full rounded-md border px-3 py-2 text-sm font-medium transition-colors {filter.favouritesOnly
+					class="w-full rounded-full border px-4 py-3 text-sm font-medium transition-colors {filter.favouritesOnly
 						? 'border-primary bg-primary text-primary-foreground'
 						: 'border-input bg-muted/50 hover:bg-muted'}"
 					onclick={toggleFavouritesFilter}
@@ -609,18 +605,5 @@
 				</button>
 			</div>
 		</details>
-		<div class="flex items-center gap-2 shrink-0 ml-auto" role="group" aria-label="Thumbnail zoom">
-			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">−</span>
-			<input
-				type="range"
-				min="0"
-				max="100"
-				value={$thumbnailZoomStore}
-				oninput={(e) => thumbnailZoomStore.set(Number((e.target as HTMLInputElement).value))}
-				class="h-1 w-24 min-w-0 cursor-pointer appearance-none rounded-full bg-muted accent-primary [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-colors [&::-webkit-slider-thumb]:hover:bg-primary/90 [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-primary"
-				aria-label="Zoom thumbnails"
-			/>
-			<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">+</span>
-		</div>
 	</div>
 </div>

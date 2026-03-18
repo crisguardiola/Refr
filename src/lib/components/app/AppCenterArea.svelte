@@ -29,16 +29,21 @@
 </script>
 
 <div
-	class="flex min-h-0 flex-1 flex-col overflow-auto bg-muted/30 p-8"
+	class="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30"
 	data-slot="app-center"
 >
-	<div class="mb-6">
-		<SearchAndFilterBar
-			{tags}
-			{tagCounts}
-			{filterStore}
-			{thumbnailZoomStore}
-		/>
+	<!-- Search bar: fixed at top, no scroll -->
+	<div class="z-20 flex min-h-[var(--content-header-height)] shrink-0 flex-col justify-center bg-background/95 px-8 py-8 backdrop-blur-xl">
+		<div>
+			<SearchAndFilterBar
+				{tags}
+				{tagCounts}
+				{filterStore}
+			/>
+		</div>
 	</div>
-	{@render children?.()}
+	<!-- Content area: scrollbar only here, within screenshot area -->
+	<div class="min-h-0 flex-1 overflow-y-auto p-8 pt-0">
+		{@render children?.()}
+	</div>
 </div>

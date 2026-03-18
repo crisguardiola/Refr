@@ -9,7 +9,7 @@
 </script>
 
 <header
-	class="fixed inset-x-0 top-0 z-50 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4"
+	class="fixed inset-x-0 top-0 z-50 flex h-14 w-full shrink-0 items-center justify-between px-4 m-2 rounded-xl"
 	data-slot="app-topbar"
 >
 	<div class="flex items-center gap-2">

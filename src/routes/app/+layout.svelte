@@ -118,16 +118,16 @@
 </script>
 
 <Sidebar.Provider>
-	<div class="app-layout flex min-h-svh w-full flex-col">
+	<div class="app-layout flex h-svh w-full flex-col overflow-hidden">
 		<AppTopBar user={data.user} />
-		<div class="flex min-h-0 flex-1 pt-14">
+		<div class="flex min-h-0 flex-1 overflow-hidden pt-[calc(var(--spacing-top-bar)+0.5rem)]">
 			<AppLeftSidebar
 				folders={data.folders ?? []}
 				counts={data.counts ?? { all: 0, uncategorised: 0, trash: 0 }}
 			/>
-			<Sidebar.Inset>
-				<div class="flex h-full flex-col overflow-hidden">
-					<div class="flex min-h-0 flex-1">
+			<Sidebar.Inset class="min-h-0 overflow-hidden">
+				<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+					<div class="flex min-h-0 flex-1 overflow-hidden">
 						<AppCenterArea tags={data.tags ?? []} tagCounts={data.tagCounts ?? {}}>
 							{@render children?.()}
 						</AppCenterArea>

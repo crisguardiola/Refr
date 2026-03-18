@@ -70,9 +70,9 @@
 			</p>
 		</div>
 		<Button
-			variant="outline"
+			variant="default"
 			size="default"
-			class="gap-2 shadow-sm"
+			class="gap-2"
 			onclick={(e) => {
 				e.stopPropagation();
 				onclick?.(e as unknown as MouseEvent);

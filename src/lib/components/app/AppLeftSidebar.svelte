@@ -66,7 +66,7 @@
 	const dropTargetClass = 'ring-2 ring-primary ring-offset-2 bg-primary/15 border border-primary/50';
 </script>
 
-<Sidebar.Root>
+<Sidebar.Root variant="floating">
 	<Sidebar.Header />
 	<Sidebar.Content>
 		<Sidebar.Group>
@@ -131,42 +131,23 @@
 		<Sidebar.Separator />
 
 		<Sidebar.Group>
-			<Sidebar.GroupLabel class="px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-				Folders
-			</Sidebar.GroupLabel>
-			<Sidebar.GroupContent>
-				<Sidebar.Menu>
-					{#each folders as f (f.id)}
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton
-								isActive={isFolderSelected(f.id)}
-								tooltipContent={f.name}
-								class={dropTarget === f.id ? dropTargetClass : ''}
-								onclick={() => goto(`/app/folder/${f.id}`)}
-								ondragover={(e) => handleFolderDragOver(e, f.id)}
-								ondragleave={handleFolderDragLeave}
-								ondrop={(e) => handleFolderDrop(e, f.id)}
-							>
-								<Folder class="size-4" />
-								<span>{f.name}</span>
-							</Sidebar.MenuButton>
-							<Sidebar.MenuBadge>{f.count ?? 0}</Sidebar.MenuBadge>
-						</Sidebar.MenuItem>
-					{/each}
-				</Sidebar.Menu>
-				<div class="flex flex-col items-center justify-center gap-4 px-4 py-6 text-center">
-					<Dialog.Root
-						bind:open={createFolderOpen}
-						onOpenChange={(isOpen) => {
-							if (!isOpen) folderName = '';
-						}}
+			<div class="flex h-8 shrink-0 items-center justify-between gap-2 px-2">
+				<span class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Folders</span>
+				<Dialog.Root
+					bind:open={createFolderOpen}
+					onOpenChange={(isOpen) => {
+						if (!isOpen) folderName = '';
+					}}
+				>
+					<Button
+						variant="default"
+						size="icon"
+						class="size-8 shrink-0"
+						aria-label="Create folder"
+						onclick={() => (createFolderOpen = true)}
 					>
-						<Dialog.Trigger
-							class="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-						>
-							<FolderPlus class="size-4" />
-							Create folder
-						</Dialog.Trigger>
+						<FolderPlus class="size-4" />
+					</Button>
 						<Dialog.Content class="w-80 max-w-[calc(100%-2rem)]">
 							<Dialog.Header>
 								<Dialog.Title>Create folder</Dialog.Title>
@@ -210,8 +191,28 @@
 								</Dialog.Footer>
 							</form>
 						</Dialog.Content>
-					</Dialog.Root>
-				</div>
+				</Dialog.Root>
+			</div>
+			<Sidebar.GroupContent>
+				<Sidebar.Menu>
+					{#each folders as f (f.id)}
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton
+								isActive={isFolderSelected(f.id)}
+								tooltipContent={f.name}
+								class={dropTarget === f.id ? dropTargetClass : ''}
+								onclick={() => goto(`/app/folder/${f.id}`)}
+								ondragover={(e) => handleFolderDragOver(e, f.id)}
+								ondragleave={handleFolderDragLeave}
+								ondrop={(e) => handleFolderDrop(e, f.id)}
+							>
+								<Folder class="size-4" />
+								<span>{f.name}</span>
+							</Sidebar.MenuButton>
+							<Sidebar.MenuBadge>{f.count ?? 0}</Sidebar.MenuBadge>
+						</Sidebar.MenuItem>
+					{/each}
+				</Sidebar.Menu>
 			</Sidebar.GroupContent>
 		</Sidebar.Group>
 	</Sidebar.Content>

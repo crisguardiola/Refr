@@ -282,7 +282,7 @@
 
 <aside
 	class={cn(
-		'flex w-64 shrink-0 flex-col overflow-auto bg-background p-4',
+		'flex min-h-0 w-64 shrink-0 flex-col overflow-auto rounded-xl p-4 m-2',
 		'sm:w-72 lg:w-80'
 	)}
 	data-slot="app-right-sidebar"
@@ -484,7 +484,7 @@
 				{#if addTagOpenFor && tagDropdownStyle}
 					<div
 						bind:this={addTagRef}
-						class="fixed z-50 overflow-hidden rounded-md border border-border bg-background shadow-lg"
+						class="fixed z-50 overflow-hidden rounded-md bg-background"
 						style="top: {tagDropdownStyle.top}; left: {tagDropdownStyle.left}; width: {tagDropdownStyle.width};"
 						role="listbox"
 					>

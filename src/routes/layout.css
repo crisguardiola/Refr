@@ -5,79 +5,187 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * BASE PALETTE — Raw colors. Change these to shift the entire app theme.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Neutrals — grayscale (slate) */
+  --base-50: #f8fafc;
+  --base-100: #f1f5f9;
+  --base-200: #e2e8f0;
+  --base-300: #cbd5e1;
+  --base-400: #94a3b8;
+  --base-500: #64748b;
+  --base-600: #475569;
+  --base-700: #334155;
+  --base-800: #1e293b;
+  --base-900: #0f172a;
+  --base-950: #020617;
+
+    /* Fills — beige (slate) */
+  --fill-50: #ffffff;
+  --fill-100: #fdfdfb;
+  --fill-200: #fbfbf7;
+  --fill-300: #f9f9f2;
+  --fill-400: #f7f7ee;
+  --fill-500: #f5f5ea;
+  --fill-600: #ddddd3;
+  --fill-700: #acaca4;
+  --fill-800: #7b7b75;
+  --fill-900: #4a4a46;
+  --fill-950: #31312f;
+
+  /* Primary — main brand/accent color */
+  --base-primary: #000000; /* Black text on primary buttons */
+  --base-primary-bg: #ACFF00; /* Lime green button background */
+  --base-primary-bg-hover: #99e600; /* Slightly darker for hover */
+  --base-primary-foreground: var(--base-primary); /* Black text on light bg */
+
+  /* Destructive — errors, delete actions */
+  --base-destructive: #dc2626;
+
+  /* Charts — data viz */
+  --base-chart-1: #f97316;
+  --base-chart-2: #14b8a6;
+  --base-chart-3: #3b82f6;
+  --base-chart-4: #eab308;
+  --base-chart-5: #f59e0b;
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * SEMANTIC COLORS — Reference base palette. Maps roles to base values.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Page & surfaces */
+  --background: var(--base-50);
+  --foreground: var(--base-900);
+  --card: var(--fill-100);
+  --card-foreground: var(--base-900);
+  --popover: var(--fill-100);
+  --popover-foreground: var(--base-900);
+
+  /* Semantic — buttons, links, states */
+  --primary: var(--base-primary-bg);
+  --primary-foreground: var(--base-primary);
+  --primary-hover: var(--base-primary-bg-hover);
+  --secondary: var(--base-100);
+  --secondary-foreground: var(--base-700);
+  --muted: var(--base-100);
+  --muted-foreground: var(--base-500);
+  --accent: var(--base-100);
+  --accent-foreground: var(--base-700);
+  --destructive: var(--base-destructive);
+
+  /* UI — borders, inputs, focus rings */
+  --border: var(--base-200);
+  --input: var(--base-200);
+  --ring: var(--base-primary);
+
+  /* Charts */
+  --chart-1: var(--base-chart-1);
+  --chart-2: var(--base-chart-2);
+  --chart-3: var(--base-chart-3);
+  --chart-4: var(--base-chart-4);
+  --chart-5: var(--base-chart-5);
+
+  /* Sidebar */
+  --sidebar: var(--base-50);
+  --sidebar-foreground: var(--base-900);
+  --sidebar-primary: var(--base-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--base-100);
+  --sidebar-accent-foreground: var(--base-700);
+  --sidebar-border: var(--base-200);
+  --sidebar-ring: var(--base-primary);
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * SPACING — Layout gaps, padding, and key dimensions.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --spacing-top-bar: 3.5rem; /* Fixed header height (h-14) */
+  --spacing-page-padding-x: 1rem; /* Horizontal padding for main content */
+  --spacing-section-gap: 1.5rem; /* gap-6 between sections */
+  --spacing-grid-gap: 1rem; /* gap-4 in masonry grids */
+  --spacing-empty-state-padding: 4rem; /* py-16 for empty states */
+  --content-header-height: 8.5rem; /* Height of search+filter bar for sticky title offset */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * TYPOGRAPHY — Font sizes and weights.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --font-size-xs: 0.75rem; /* 12px — captions, labels */
+  --font-size-sm: 0.875rem; /* 14px — body, buttons */
+  --font-size-base: 1rem; /* 16px — default */
+  --font-size-lg: 1.125rem; /* 18px — nav brand */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px — page titles */
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --font-tracking-tight: -0.025em; /* For headings */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * BORDERS — Corner radius and border widths.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --radius: 1rem; /* 16px — base radius (more rounded, friendly) */
+  --radius-sm: calc(var(--radius) - 6px); /* 10px — small elements */
+  --radius-md: calc(var(--radius) - 4px); /* 12px — inputs, chips */
+  --radius-lg: var(--radius); /* 16px — cards, modals */
+  --radius-xl: calc(var(--radius) + 4px); /* 20px — large containers */
+  --radius-2xl: calc(var(--radius) + 8px); /* 24px — empty states, drop zones */
+
+  --border-width: 1px;
+  --border-width-2: 2px;
 }
 
+/* Dark mode — override base palette; semantic colors auto-update */
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  /* Neutrals (inverted for dark) */
+  --base-50: #0f172a;
+  --base-100: #1e293b;
+  --base-200: #334155;
+  --base-300: #475569;
+  --base-400: #64748b;
+  --base-500: #94a3b8;
+  --base-600: #cbd5e1;
+  --base-700: #e2e8f0;
+  --base-800: #f1f5f9;
+  --base-900: #f8fafc;
+  --base-950: #ffffff;
+
+  /* Primary & destructive */
+  --base-primary: #3b82f6;
+  --base-primary-foreground: #fafafa;
+  --base-destructive: #ef4444;
+
+  /* Charts */
+  --base-chart-1: #6366f1;
+  --base-chart-2: #22d3ee;
+  --base-chart-3: #f59e0b;
+  --base-chart-4: #a855f7;
+  --base-chart-5: #f43f5e;
+
+  /* Dark mode: card/popover use dark fill for elevated surfaces */
+  --card: var(--fill-800);
+  --popover: var(--fill-800);
+
+  /* Dark mode: primary button — same lime green, black text */
+  --primary: #ACFF00;
+  --primary-foreground: #000000;
+  --primary-hover: #99e600;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Radius tokens from :root */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -86,6 +194,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -120,8 +229,43 @@
   }
 }
 
-/* App layout: sidebar starts below the top bar */
+/* App layout: sidebar starts below the top bar (account for top bar margin) */
 .app-layout [data-slot="sidebar-container"] {
-  top: 3.5rem;
-  height: calc(100vh - 3.5rem);
+  top: calc(var(--spacing-top-bar) + 0.5rem);
+  height: calc(100vh - var(--spacing-top-bar) - 0.5rem);
+}
+
+/* Floating left sidebar: fill-500 background, rounded corners, no stroke or shadow */
+.app-layout [data-slot="sidebar-inner"] {
+  --sidebar: var(--fill-500);
+  --sidebar-foreground: var(--base-900);
+  --sidebar-accent: rgba(0, 0, 0, 0.08);
+  --sidebar-accent-foreground: var(--base-900);
+  --sidebar-border: rgba(0, 0, 0, 0.12);
+  --sidebar-primary: var(--base-primary);
+  --sidebar-primary-foreground: #ffffff;
+  border-radius: var(--radius-xl);
+  border: none;
+  box-shadow: none;
+}
+
+.dark .app-layout [data-slot="sidebar-inner"] {
+  --sidebar-foreground: var(--base-900);
+  --sidebar-accent: rgba(0, 0, 0, 0.1);
+  --sidebar-accent-foreground: var(--base-900);
+  --sidebar-border: rgba(0, 0, 0, 0.15);
+}
+
+/* Right side panel: same treatment as left sidebar — fill-500, rounded, no stroke or shadow */
+.app-layout [data-slot="app-right-sidebar"] {
+  background-color: var(--fill-500);
+  border: none;
+  box-shadow: none;
+}
+
+/* Top bar: same treatment — fill-500, rounded, no stroke or shadow */
+[data-slot="app-topbar"] {
+  background-color: var(--fill-500);
+  border: none;
+  box-shadow: none;
 }
