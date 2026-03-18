@@ -260,6 +260,10 @@
   border-radius: var(--radius-xl);
   border: none;
   box-shadow: none;
+  background-image:
+    radial-gradient(ellipse 105% 85% at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0%, transparent 62%),
+    radial-gradient(ellipse 85% 65% at 100% 100%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 58%);
+  background-color: var(--fill-50);
 }
 
 .dark .app-layout [data-slot="sidebar-inner"] {
@@ -277,6 +281,9 @@
 /* Right side panel: same treatment as left sidebar — fill-50 (lightest), rounded, no stroke or shadow */
 .app-layout [data-slot="app-right-sidebar"] {
   background-color: var(--fill-50);
+  background-image:
+    radial-gradient(ellipse 105% 85% at 100% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0%, transparent 62%),
+    radial-gradient(ellipse 85% 65% at 0% 100%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 58%);
   border: none;
   box-shadow: none;
 }
