@@ -2,7 +2,7 @@
 	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
-	import { Download, Heart, Maximize2, MoreVertical, Trash2, Upload } from '@lucide/svelte';
+	import { Download, Heart, Maximize2, MoreVertical, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import { SCREENSHOT_DRAG_TYPE, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
@@ -134,6 +134,7 @@
 	const isEmpty = $derived(screenshots.length === 0);
 	const selected = $derived(selectedCtx?.selected ?? null);
 	const defaultFolderId = $derived<number | null>(null);
+	const flowCtx = getContext<{ openFlow: (screenshots: Screenshot[], folderId: number | null) => void }>('flowCanvas');
 	let zoomLevel = $state(50);
 	$effect(() => {
 		if (!zoomStore) return;
@@ -142,6 +143,26 @@
 		});
 	});
 	let menuOpenForId = $state<number | null>(null);
+	let selectedIds = $state<Set<number>>(new Set());
+
+	function toggleSelect(e: MouseEvent, shot: { id: number }) {
+		e.preventDefault();
+		e.stopPropagation();
+		selectedIds = new Set(selectedIds);
+		if (selectedIds.has(shot.id)) {
+			selectedIds.delete(shot.id);
+		} else {
+			selectedIds.add(shot.id);
+		}
+	}
+
+	function clearSelection() {
+		selectedIds = new Set();
+	}
+
+	const selectedScreenshots = $derived(
+		[...selectedIds].map((id) => screenshots.find((s) => s.id === id)).filter(Boolean) as Screenshot[]
+	);
 
 	async function handleDownload(e: MouseEvent, shot: { id: number; url: string; fileName: string }) {
 		e.preventDefault();
@@ -205,6 +226,37 @@
 			await invalidateAll();
 		}
 	}
+
+	async function handleBulkDownload() {
+		for (const shot of selectedScreenshots) {
+			const url = cloudinaryUrl(shot.url, 'detail');
+			try {
+				const res = await fetch(url);
+				const blob = await res.blob();
+				const blobUrl = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = blobUrl;
+				a.download = shot.fileName || 'screenshot.png';
+				a.click();
+				URL.revokeObjectURL(blobUrl);
+				await new Promise((r) => setTimeout(r, 300));
+			} catch {
+				window.open(url, '_blank');
+			}
+		}
+		clearSelection();
+	}
+
+	async function handleBulkMoveToTrash() {
+		for (const shot of selectedScreenshots) {
+			await moveScreenshot(shot.id, 'trash', (shot.tags ?? []).map((t) => t.id));
+		}
+		if (selected && selectedIds.has(selected.id)) {
+			selectedCtx?.setSelected(null);
+		}
+		clearSelection();
+		await invalidateAll();
+	}
 </script>
 
 <input
@@ -217,7 +269,29 @@
 />
 <div class="flex flex-1 flex-col gap-6">
 	<div class="sticky top-0 z-10 flex items-center justify-between gap-4 bg-background/95 backdrop-blur-xl pb-4 -mt-4 pt-4">
-		<h1 class="text-2xl font-semibold tracking-tight">Uncategorised</h1>
+		<div class="flex flex-col gap-2 min-w-0">
+			<h1 class="text-2xl font-semibold tracking-tight">Uncategorised</h1>
+			{#if selectedIds.size > 0}
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+					{#if selectedIds.size > 1}
+						<Button variant="outline" size="sm" class="gap-1.5" onclick={() => flowCtx?.openFlow(selectedScreenshots, selectedScreenshots[0]?.folder?.id ?? null)}>
+							<Workflow class="size-4" />
+							Start a flow
+						</Button>
+					{/if}
+					<Button variant="outline" size="sm" class="gap-1.5" onclick={handleBulkDownload}>
+						<Download class="size-4" />
+						Download
+					</Button>
+					<Button variant="outline" size="sm" class="gap-1.5 text-destructive hover:text-destructive" onclick={handleBulkMoveToTrash}>
+						<Trash2 class="size-4" />
+						Move to trash
+					</Button>
+					<Button variant="ghost" size="sm" onclick={clearSelection}>Cancel</Button>
+				</div>
+			{/if}
+		</div>
 		<div class="flex items-center gap-4 shrink-0">
 			<div class="flex items-center gap-2" role="group" aria-label="Thumbnail zoom">
 				<span class="text-xs font-medium text-muted-foreground tabular-nums" aria-hidden="true">−</span>
@@ -277,12 +351,26 @@
 					{#each monthShots as shot (shot.id)}
 				<div
 					role="listitem"
-					class="group relative mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted cursor-grab active:cursor-grabbing {selected?.id === shot.id
+					class="group relative mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted cursor-grab active:cursor-grabbing {selected?.id === shot.id || selectedIds.has(shot.id)
 						? 'border-2 border-primary'
 						: 'border border-border'}"
 					draggable="true"
 					ondragstart={(e) => handleScreenshotDragStart(e, shot)}
 				>
+					<Button
+						variant="ghost"
+						size="icon"
+						class="absolute left-2 top-2 z-10 size-8 rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/70 flex items-center justify-center {selectedIds.has(shot.id) ? 'opacity-100' : ''}"
+						aria-label={selectedIds.has(shot.id) ? 'Deselect' : 'Select for bulk actions'}
+						aria-pressed={selectedIds.has(shot.id)}
+						onclick={(e) => toggleSelect(e, shot)}
+					>
+						{#if selectedIds.has(shot.id)}
+							<SquareCheck class="size-4 text-primary" />
+						{:else}
+							<Square class="size-4" />
+						{/if}
+					</Button>
 					<button
 						type="button"
 						class="block w-full aspect-square overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"

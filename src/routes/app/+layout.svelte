@@ -10,6 +10,7 @@
 	import { X, ChevronLeft, ChevronRight, Pencil } from '@lucide/svelte';
 	import AnnotationCanvas from '$lib/components/app/AnnotationCanvas.svelte';
 	import AnnotationOverlay from '$lib/components/app/AnnotationOverlay.svelte';
+	import FlowCanvas from '$lib/components/app/FlowCanvas.svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
@@ -52,6 +53,54 @@
 
 	const currentScreenshotsStore = writable<Screenshot[]>([]);
 	setContext('currentScreenshots', currentScreenshotsStore);
+
+	let flowOpen = $state(false);
+	let flowScreenshots = $state<Screenshot[]>([]);
+	let flowFolderId = $state<number | null>(null);
+	let flowEditId = $state<number | null>(null);
+	let flowInitialData = $state<{
+		nodes: { id: number; x: number; y: number; width: number; height: number }[];
+		arrows: { from: number; to: number }[];
+		freeArrows?: { fromX: number; fromY: number; toX: number; toY: number }[];
+		canvasMarkup?: { strokes?: { points: { x: number; y: number }[]; color?: string; width?: number }[] };
+	} | null>(null);
+	setContext('flowCanvas', {
+		openFlow(screenshots: Screenshot[], folderId: number | null) {
+			flowScreenshots = screenshots;
+			flowFolderId = folderId;
+			flowEditId = null;
+			flowInitialData = null;
+			flowOpen = true;
+		},
+		async openFlowForEdit(flowId: number) {
+			try {
+				const res = await fetch(`/app/flow/${flowId}`);
+				const json = await res.json();
+				if (!json?.success || !json?.flow) return;
+				const { flow: f, screenshots: ss } = json;
+				flowScreenshots = ss ?? [];
+				flowFolderId = f.folderId ?? null;
+				flowEditId = flowId;
+				const fd = f.flowData ?? {};
+				flowInitialData = {
+					nodes: fd.nodes ?? [],
+					arrows: fd.arrows ?? [],
+					freeArrows: fd.freeArrows ?? [],
+					canvasMarkup: fd.canvasMarkup ?? undefined
+				};
+				flowOpen = true;
+			} catch (err) {
+				console.error('Failed to load flow:', err);
+			}
+		},
+		closeFlow() {
+			flowOpen = false;
+			flowScreenshots = [];
+			flowFolderId = null;
+			flowEditId = null;
+			flowInitialData = null;
+		}
+	});
 
 	let screenshots = $state<Screenshot[]>([]);
 	$effect(() => {
@@ -275,5 +324,53 @@
 				{/if}
 			</div>
 		</div>
+	{/if}
+
+	{#if flowOpen && (flowScreenshots.length > 0 || flowEditId != null)}
+		<FlowCanvas
+			screenshots={flowScreenshots}
+			folderId={flowFolderId}
+			initialNodes={flowInitialData?.nodes}
+			initialArrows={flowInitialData?.arrows}
+			initialFreeArrows={flowInitialData?.freeArrows}
+			initialCanvasMarkup={flowInitialData?.canvasMarkup}
+			onSave={async (data) => {
+				if (flowEditId != null) {
+					const res = await fetch(`/app/flow/${flowEditId}/update`, {
+						method: 'PUT',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ flowData: data })
+					});
+					const json = await res.json();
+					if (json?.success) {
+						flowOpen = false;
+						flowScreenshots = [];
+						flowFolderId = null;
+						flowEditId = null;
+						flowInitialData = null;
+						await import('$app/navigation').then((m) => m.invalidateAll());
+					}
+				} else {
+					const formData = new FormData();
+					formData.append('flowData', JSON.stringify(data));
+					formData.append('folderId', flowFolderId != null ? String(flowFolderId) : '');
+					const res = await fetch('/app/flow/create', { method: 'POST', body: formData });
+					const json = await res.json();
+					if (json?.success) {
+						flowOpen = false;
+						flowScreenshots = [];
+						flowFolderId = null;
+						await import('$app/navigation').then((m) => m.invalidateAll());
+					}
+				}
+			}}
+			onCancel={() => {
+				flowOpen = false;
+				flowScreenshots = [];
+				flowFolderId = null;
+				flowEditId = null;
+				flowInitialData = null;
+			}}
+		/>
 	{/if}
 </Sidebar.Provider>

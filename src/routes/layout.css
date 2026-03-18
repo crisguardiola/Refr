@@ -288,6 +288,15 @@
   box-shadow: none;
 }
 
+/* Flow canvas: subtle dot pattern (Tailwind arbitrary values not generated) */
+.flow-canvas-dots {
+  background-image: radial-gradient(circle, rgba(30, 41, 59, 0.08) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.dark .flow-canvas-dots {
+  background-image: radial-gradient(circle, rgba(241, 245, 249, 0.1) 1px, transparent 1px);
+}
+
 /* Top bar: fixed to top, flat bar with subtle border */
 [data-slot="app-topbar"] {
   background-color: var(--background);

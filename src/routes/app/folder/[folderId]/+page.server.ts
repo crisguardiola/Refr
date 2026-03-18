@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { screenshot, folder, screenshotTag } from '$lib/server/db/schema';
+import { screenshot, folder, screenshotTag, flow } from '$lib/server/db/schema';
 import { enrichScreenshotsWithFolderAndTags } from '$lib/server/screenshot';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
@@ -60,7 +60,44 @@ export const load: PageServerLoad = async (event) => {
 		.orderBy(desc(screenshot.createdAt));
 
 	const screenshots = await enrichScreenshotsWithFolderAndTags(rows);
-	return { folder: folderRow, screenshots };
+
+	const flowRows = await db
+		.select()
+		.from(flow)
+		.where(and(eq(flow.userId, session.user.id), eq(flow.folderId, folderId)))
+		.orderBy(desc(flow.createdAt));
+
+	const flows = flowRows.map((f) => {
+		const data = f.flowData as { nodes?: { id: number }[] };
+		const firstNodeId = data?.nodes?.[0]?.id;
+		return {
+			id: f.id,
+			name: f.name,
+			flowData: data,
+			createdAt: f.createdAt,
+			firstScreenshotId: firstNodeId ?? null
+		};
+	});
+
+	const firstScreenshotIds = flows.map((f) => f.firstScreenshotId).filter((id): id is number => id != null);
+	const screenshotMap = new Map<number, (typeof screenshots)[0]>();
+	for (const s of screenshots) {
+		screenshotMap.set(s.id, s);
+	}
+
+	const flowsWithThumbnail = flows.map((f) => {
+		const thumb = f.firstScreenshotId ? screenshotMap.get(f.firstScreenshotId) : null;
+		return {
+			id: f.id,
+			name: f.name,
+			flowData: f.flowData,
+			createdAt: f.createdAt,
+			thumbnailUrl: thumb?.url ?? null,
+			thumbnailFileName: thumb?.fileName ?? null
+		};
+	});
+
+	return { folder: folderRow, screenshots, flows: flowsWithThumbnail };
 };
 
 export const actions: Actions = {
@@ -231,6 +268,10 @@ export const actions: Actions = {
 			.update(screenshot)
 			.set({ folderId: null })
 			.where(and(eq(screenshot.folderId, folderId), eq(screenshot.userId, session.user.id)));
+		await db
+			.update(flow)
+			.set({ folderId: null })
+			.where(and(eq(flow.folderId, folderId), eq(flow.userId, session.user.id)));
 		await db
 			.delete(folder)
 			.where(and(eq(folder.id, folderId), eq(folder.userId, session.user.id)));

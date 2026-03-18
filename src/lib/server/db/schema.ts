@@ -43,6 +43,17 @@ export const tag = pgTable('tag', {
 	sortOrder: integer('sort_order').notNull().default(0)
 });
 
+export const flow = pgTable('flow', {
+	id: serial('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	folderId: integer('folder_id').references(() => folder.id, { onDelete: 'set null' }),
+	name: text('name'),
+	flowData: jsonb('flow_data').notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
 export const screenshotTag = pgTable(
 	'screenshot_tag',
 	{
@@ -58,7 +69,13 @@ export const screenshotTag = pgTable(
 
 export const folderRelations = relations(folder, ({ one, many }) => ({
 	user: one(user),
-	screenshots: many(screenshot)
+	screenshots: many(screenshot),
+	flows: many(flow)
+}));
+
+export const flowRelations = relations(flow, ({ one }) => ({
+	user: one(user),
+	folder: one(folder)
 }));
 
 export const screenshotRelations = relations(screenshot, ({ one, many }) => ({
