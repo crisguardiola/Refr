@@ -119,7 +119,7 @@
 
 <Sidebar.Provider>
 	<div class="app-layout flex min-h-svh w-full flex-col">
-		<AppTopBar />
+		<AppTopBar user={data.user} />
 		<div class="flex min-h-0 flex-1 pt-14">
 			<AppLeftSidebar
 				folders={data.folders ?? []}
