@@ -7,7 +7,7 @@
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { ImageIcon, Trash2, Plus, X, Heart, Search } from '@lucide/svelte';
+	import { ImageIcon, Trash2, Plus, X, Heart, Search, Maximize2, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 
 	type Folder = { id: number; name: string; count?: number };
@@ -15,21 +15,25 @@
 
 	const TAG_DROPDOWN_EST_HEIGHT = 220;
 
+	type Screenshot = {
+		id: number;
+		url: string;
+		fileName: string;
+		note?: string | null;
+		favourite?: boolean;
+		createdAt: Date | string;
+		folder?: { id: number; name: string } | null;
+		tags?: Tag[];
+	};
+
 	let {
 		selectedScreenshot = null,
+		screenshots = [],
 		folders = [],
 		tags = []
 	}: {
-		selectedScreenshot?: {
-			id: number;
-			url: string;
-			fileName: string;
-			note?: string | null;
-			favourite?: boolean;
-			createdAt: Date | string;
-			folder?: { id: number; name: string } | null;
-			tags?: Tag[];
-		} | null;
+		selectedScreenshot?: Screenshot | null;
+		screenshots?: Screenshot[];
 		folders?: Folder[];
 		tags?: Tag[];
 	} = $props();
@@ -37,6 +41,7 @@
 	const selectedCtx = getContext<{
 		setSelected: (s: { id: number; url: string; fileName: string; note?: string | null; favourite?: boolean; createdAt: Date | string; folder?: { id: number; name: string } | null; tags?: Tag[] } | null) => void;
 	}>('selectedScreenshot');
+	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
 
 	let folderId = $state<string>('');
 	let addTagOpenFor = $state<'screen' | 'ui' | null>(null);
@@ -143,6 +148,36 @@
 	);
 
 	const isTrashPage = $derived($page?.url?.pathname === '/app/trash');
+
+	const currentIndex = $derived(
+		selectedScreenshot && screenshots.length > 0
+			? screenshots.findIndex((s) => s.id === selectedScreenshot.id)
+			: -1
+	);
+	const prevScreenshot = $derived(
+		currentIndex > 0 ? screenshots[currentIndex - 1] : null
+	);
+	const nextScreenshot = $derived(
+		currentIndex >= 0 && currentIndex < screenshots.length - 1
+			? screenshots[currentIndex + 1]
+			: null
+	);
+
+	function openImage() {
+		if (selectedScreenshot) fullscreenCtx?.setFullscreen(selectedScreenshot);
+	}
+
+	function goPrev() {
+		if (prevScreenshot) {
+			selectedCtx?.setSelected(prevScreenshot);
+		}
+	}
+
+	function goNext() {
+		if (nextScreenshot) {
+			selectedCtx?.setSelected(nextScreenshot);
+		}
+	}
 
 	async function updateScreenshot(payload: { folderId: string; tagIds: number[]; favourite?: boolean }) {
 		if (!selectedScreenshot || isSaving) return;
@@ -256,7 +291,38 @@
 		<div class="flex flex-col gap-6">
 			<div class="space-y-2">
 				<h3 class="text-sm font-semibold">Details</h3>
-				<div class="aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30">
+				<div class="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/30 group">
+					<button
+						type="button"
+						onclick={openImage}
+						class="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-ring"
+						aria-label="Open image"
+					>
+						<Maximize2 class="size-4 inline-block" />
+						<span class="ml-1.5">Open image</span>
+					</button>
+					{#if prevScreenshot || nextScreenshot}
+						<div class="absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+							<button
+								type="button"
+								onclick={goPrev}
+								disabled={!prevScreenshot}
+								class="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-black/60"
+								aria-label="Previous image"
+							>
+								<ChevronLeft class="size-5" />
+							</button>
+							<button
+								type="button"
+								onclick={goNext}
+								disabled={!nextScreenshot}
+								class="rounded-md bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-black/60"
+								aria-label="Next image"
+							>
+								<ChevronRight class="size-5" />
+							</button>
+						</div>
+					{/if}
 					<img
 						src={cloudinaryUrl(selectedScreenshot.url, 'sidebar')}
 						alt={selectedScreenshot.fileName}

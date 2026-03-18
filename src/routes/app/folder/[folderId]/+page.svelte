@@ -34,6 +34,10 @@
 		setSelected: (s: Screenshot | null) => void;
 	}>('selectedScreenshot');
 	const fullscreenCtx = getContext<{ setFullscreen: (s: Screenshot | null) => void }>('fullscreenScreenshot');
+	const currentScreenshotsStore = getContext<import('svelte/store').Writable<Screenshot[]>>('currentScreenshots');
+	$effect(() => {
+		currentScreenshotsStore?.set(data.screenshots ?? []);
+	});
 	const filterStore = getContext<{ subscribe: (fn: (v: { searchQuery: string; selectedTagIds: number[]; favouritesOnly: boolean }) => void) => () => void }>('screenshotFilters');
 	const zoomStore = getContext<import('svelte/store').Writable<number>>('thumbnailZoom');
 

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
+	import { writable } from 'svelte/store';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import AppTopBar from '$lib/components/app/AppTopBar.svelte';
 	import AppLeftSidebar from '$lib/components/app/AppLeftSidebar.svelte';
 	import AppCenterArea from '$lib/components/app/AppCenterArea.svelte';
 	import AppRightSidebar from '$lib/components/app/AppRightSidebar.svelte';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
-	import { X } from '@lucide/svelte';
+	import { X, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
@@ -43,10 +44,73 @@
 		}
 	});
 
+	const currentScreenshotsStore = writable<Screenshot[]>([]);
+	setContext('currentScreenshots', currentScreenshotsStore);
+
+	let screenshots = $state<Screenshot[]>([]);
 	$effect(() => {
-		if (!fullscreenScreenshot) return;
+		const unsub = currentScreenshotsStore.subscribe((v) => {
+			screenshots = v;
+		});
+		return unsub;
+	});
+	const fullscreenIndex = $derived(
+		fullscreenScreenshot && screenshots.length > 0
+			? screenshots.findIndex((s) => s.id === fullscreenScreenshot.id)
+			: -1
+	);
+	const prevFullscreen = $derived(
+		fullscreenIndex > 0 ? screenshots[fullscreenIndex - 1] : null
+	);
+	const nextFullscreen = $derived(
+		fullscreenIndex >= 0 && fullscreenIndex < screenshots.length - 1
+			? screenshots[fullscreenIndex + 1]
+			: null
+	);
+
+	function goFullscreenPrev() {
+		if (prevFullscreen) {
+			fullscreenScreenshot = prevFullscreen;
+			selectedScreenshot = prevFullscreen;
+		}
+	}
+
+	function goFullscreenNext() {
+		if (nextFullscreen) {
+			fullscreenScreenshot = nextFullscreen;
+			selectedScreenshot = nextFullscreen;
+		}
+	}
+
+	$effect(() => {
 		function handleKeydown(e: KeyboardEvent) {
-			if (e.key === 'Escape') fullscreenScreenshot = null;
+			const target = e.target as HTMLElement;
+			const inInput = target?.closest?.('input, textarea, [contenteditable="true"]');
+			if (inInput && !fullscreenScreenshot) return;
+
+			if (fullscreenScreenshot) {
+				if (e.key === 'Escape') fullscreenScreenshot = null;
+				if (e.key === 'ArrowLeft') {
+					e.preventDefault();
+					goFullscreenPrev();
+				}
+				if (e.key === 'ArrowRight') {
+					e.preventDefault();
+					goFullscreenNext();
+				}
+				return;
+			}
+			if (selectedScreenshot && screenshots.length > 0) {
+				const idx = screenshots.findIndex((s) => s.id === selectedScreenshot.id);
+				if (e.key === 'ArrowLeft' && idx > 0) {
+					e.preventDefault();
+					selectedScreenshot = screenshots[idx - 1];
+				}
+				if (e.key === 'ArrowRight' && idx < screenshots.length - 1) {
+					e.preventDefault();
+					selectedScreenshot = screenshots[idx + 1];
+				}
+			}
 		}
 		document.addEventListener('keydown', handleKeydown);
 		return () => document.removeEventListener('keydown', handleKeydown);
@@ -69,6 +133,7 @@
 						</AppCenterArea>
 						<AppRightSidebar
 							selectedScreenshot={selectedScreenshot}
+							screenshots={screenshots}
 							folders={data.folders ?? []}
 							tags={data.tags ?? []}
 						/>
@@ -99,6 +164,32 @@
 			>
 				<X class="size-6" />
 			</button>
+			{#if prevFullscreen}
+				<button
+					type="button"
+					class="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center rounded-full size-12 bg-black/60 text-white hover:bg-black/80 transition-colors border border-white/20"
+					aria-label="Previous image"
+					onclick={(e) => {
+						e.stopPropagation();
+						goFullscreenPrev();
+					}}
+				>
+					<ChevronLeft class="size-8" />
+				</button>
+			{/if}
+			{#if nextFullscreen}
+				<button
+					type="button"
+					class="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex items-center justify-center rounded-full size-12 bg-black/60 text-white hover:bg-black/80 transition-colors border border-white/20"
+					aria-label="Next image"
+					onclick={(e) => {
+						e.stopPropagation();
+						goFullscreenNext();
+					}}
+				>
+					<ChevronRight class="size-8" />
+				</button>
+			{/if}
 			<div
 				class="min-h-0 flex-1 flex items-center justify-center"
 				onclick={(e) => e.stopPropagation()}
