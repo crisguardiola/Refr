@@ -16,6 +16,17 @@
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
 
 	const TAG_DROPDOWN_EST_HEIGHT = 220;
+	const NOTE_MAX_LENGTH = 500;
+
+	function getExtension(name: string): string {
+		const dot = name.lastIndexOf('.');
+		return dot > 0 ? name.slice(dot + 1) : '';
+	}
+
+	function getBaseName(name: string): string {
+		const dot = name.lastIndexOf('.');
+		return dot > 0 ? name.slice(0, dot) : name;
+	}
 
 	type Screenshot = {
 		id: number;
@@ -119,7 +130,7 @@
 	$effect(() => {
 		if (selectedScreenshot) {
 			folderId = selectedScreenshot.folder?.id != null ? String(selectedScreenshot.folder.id) : '';
-			localFileName = selectedScreenshot.fileName ?? '';
+			localFileName = getBaseName(selectedScreenshot.fileName ?? '');
 			localNote = selectedScreenshot.note ?? '';
 		}
 	});
@@ -281,15 +292,18 @@
 
 	function handleFileNameBlur() {
 		const trimmed = localFileName.trim();
-		if (trimmed && trimmed !== selectedScreenshot?.fileName) {
-			updateDetails({ fileName: trimmed });
+		const fullName = selectedScreenshot?.fileName ?? '';
+		const ext = getExtension(fullName);
+		const newFullName = trimmed ? (ext ? `${trimmed}.${ext}` : trimmed) : fullName;
+		if (trimmed && newFullName !== fullName) {
+			updateDetails({ fileName: newFullName });
 		} else if (!trimmed) {
-			localFileName = selectedScreenshot?.fileName ?? '';
+			localFileName = getBaseName(fullName);
 		}
 	}
 
 	function handleNoteBlur() {
-		const trimmed = localNote.trim();
+		const trimmed = localNote.trim().slice(0, NOTE_MAX_LENGTH);
 		const current = selectedScreenshot?.note ?? '';
 		if (trimmed !== current) {
 			updateDetails({ note: trimmed || '' });
@@ -408,14 +422,19 @@
 				<div>
 					<dt class="text-muted-foreground">File name</dt>
 					<dd class="mt-0.5">
-						<input
-							type="text"
-							bind:value={localFileName}
-							onblur={handleFileNameBlur}
-							disabled={isSavingDetails}
-							class="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
-							placeholder="File name"
-						/>
+						<div class="flex items-center gap-1 rounded-md border border-input bg-transparent focus-within:ring-2 focus-within:ring-ring">
+							<input
+								type="text"
+								bind:value={localFileName}
+								onblur={handleFileNameBlur}
+								disabled={isSavingDetails}
+								class="min-w-0 flex-1 rounded-md border-0 bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+								placeholder="File name"
+							/>
+							{#if getExtension(selectedScreenshot?.fileName ?? '')}
+								<span class="shrink-0 pr-2 text-sm text-muted-foreground">.{getExtension(selectedScreenshot?.fileName ?? '')}</span>
+							{/if}
+						</div>
 					</dd>
 				</div>
 				<div>
@@ -425,10 +444,12 @@
 							bind:value={localNote}
 							onblur={handleNoteBlur}
 							disabled={isSavingDetails}
-							rows={3}
-							class="w-full resize-none rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+							rows={5}
+							maxlength={NOTE_MAX_LENGTH}
+							class="min-h-[7.5rem] w-full resize-none rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring break-words overflow-x-hidden"
 							placeholder="Add a note..."
 						/>
+						<p class="mt-0.5 text-xs text-muted-foreground">{localNote.length}/{NOTE_MAX_LENGTH}</p>
 					</dd>
 				</div>
 				<div>

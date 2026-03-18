@@ -49,7 +49,7 @@
 			<Sun class="size-4 dark:hidden" />
 			<Moon class="size-4 hidden dark:block" />
 		</button>
-		<Button href="/demo/better-auth/login">Get started</Button>
+		<Button href="/demo/better-auth/login?signup=true">Get started</Button>
 	</div>
 </header>
 

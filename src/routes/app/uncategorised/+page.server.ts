@@ -70,6 +70,9 @@ export const actions: Actions = {
 		const file = formData.get('screenshot') as File | null;
 		const noteRaw = formData.get('note');
 		const note = typeof noteRaw === 'string' ? noteRaw.trim() || null : null;
+		const fileNameRaw = formData.get('fileName');
+		const customFileName =
+			typeof fileNameRaw === 'string' && fileNameRaw.trim() ? fileNameRaw.trim() : null;
 		const folderIdRaw = formData.get('folderId');
 		const newFolderNameRaw = formData.get('newFolderName');
 		const tagsRaw = formData.get('tags');
@@ -140,7 +143,7 @@ export const actions: Actions = {
 					userId: session.user.id,
 					folderId,
 					url: result.secure_url,
-					fileName: file.name,
+					fileName: customFileName ?? file.name,
 					note,
 					favourite
 				})

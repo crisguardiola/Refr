@@ -3,8 +3,26 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+
+	const NOTE_MAX_LENGTH = 500;
+
+	function getExtension(name: string, mimeType?: string): string {
+		const dot = name.lastIndexOf('.');
+		if (dot > 0) return name.slice(dot + 1);
+		if (mimeType === 'image/png') return 'png';
+		if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return 'jpg';
+		if (mimeType === 'image/webp') return 'webp';
+		if (mimeType === 'image/gif') return 'gif';
+		return '';
+	}
+
+	function getBaseName(name: string): string {
+		const dot = name.lastIndexOf('.');
+		return dot > 0 ? name.slice(0, dot) : name;
+	}
+
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Heart, Search } from '@lucide/svelte';
+	import { Search } from '@lucide/svelte';
 	import { getSectionForLabel } from '$lib/tags.js';
 
 	type Folder = { id: number; name: string; count?: number };
@@ -36,11 +54,11 @@
 	} = $props();
 
 	let noteText = $state('');
+	let fileNameValue = $state('');
 	let folderValue = $state<string>('');
 	let createNewFolder = $state(false);
 	let newFolderName = $state('');
 	let selectedTagIds = $state<Set<number>>(new Set());
-	let favourite = $state(false);
 	let uploadResult = $state<{ success?: boolean; error?: string } | null>(null);
 	let isSubmitting = $state(false);
 	let uiElementsSearch = $state('');
@@ -51,8 +69,8 @@
 			createNewFolder = false;
 			newFolderName = '';
 			noteText = '';
+			fileNameValue = getBaseName(fileName);
 			selectedTagIds = new Set();
-			favourite = false;
 			uploadResult = null;
 			uiElementsSearch = '';
 		}
@@ -130,7 +148,12 @@
 
 		const formData = new FormData();
 		formData.append('screenshot', pendingFile);
-		formData.append('note', noteText.trim());
+		formData.append('note', noteText.trim().slice(0, NOTE_MAX_LENGTH));
+		if (fileNameValue.trim()) {
+			const ext = getExtension(fileName, pendingFile?.type);
+			const finalName = ext ? `${fileNameValue.trim()}.${ext}` : fileNameValue.trim();
+			formData.append('fileName', finalName);
+		}
 		if (createNewFolder && newFolderName.trim()) {
 			formData.append('newFolderName', newFolderName.trim());
 		} else if (folderValue && folderValue !== 'new') {
@@ -138,9 +161,6 @@
 		}
 		if (selectedTagIds.size > 0) {
 			formData.append('tags', [...selectedTagIds].join(','));
-		}
-		if (favourite) {
-			formData.append('favourite', '1');
 		}
 
 		fetch(uploadAction, { method: 'POST', body: formData })
@@ -195,6 +215,20 @@
 					<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Details</p>
 					<div class="space-y-3">
 						<div class="space-y-2">
+							<label for="fileName-input" class="block text-xs text-muted-foreground/80">File name</label>
+							<div class="flex items-center gap-1 rounded-md border border-input bg-transparent shadow-sm focus-within:ring-1 focus-within:ring-ring">
+								<Input
+									id="fileName-input"
+									bind:value={fileNameValue}
+									placeholder="Screenshot name"
+									class="border-0 shadow-none focus-visible:ring-0"
+								/>
+								{#if getExtension(fileName, pendingFile?.type)}
+									<span class="shrink-0 pr-3 text-sm text-muted-foreground">.{getExtension(fileName, pendingFile?.type)}</span>
+								{/if}
+							</div>
+						</div>
+						<div class="space-y-2">
 							<label for="folder-select" class="block text-xs text-muted-foreground/80">Folder</label>
 							<select
 								id="folder-select"
@@ -222,39 +256,21 @@
 						</div>
 						<div class="space-y-2">
 							<label for="note-input" class="block text-xs text-muted-foreground/80">Note</label>
-							<Input
+							<textarea
 								id="note-input"
 								bind:value={noteText}
 								placeholder="Why are you saving this? (optional)"
-								class="w-full"
+								rows={5}
+								maxlength={NOTE_MAX_LENGTH}
+								class="flex min-h-[7.5rem] w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring break-words overflow-x-hidden"
 							/>
+							<p class="text-xs text-muted-foreground">{noteText.length}/{NOTE_MAX_LENGTH}</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="space-y-2 pt-1">
-					<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Favourite</p>
-					<div class="flex items-center gap-3">
-						<button
-							type="button"
-							onclick={() => favourite = !favourite}
-							class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							aria-label={favourite ? 'Remove from favourites' : 'Add to favourites'}
-							aria-pressed={favourite}
-						>
-							<Heart
-								class="size-6 transition-colors {favourite
-									? 'fill-primary text-primary'
-									: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
-							/>
-						</button>
-						<span class="text-sm text-muted-foreground">
-							{favourite ? 'Will be added to favourites' : 'Click to favourite'}
-						</span>
-					</div>
-				</div>
-
 				<div class="space-y-3 border-t border-border pt-5">
+					<p class="text-sm text-muted-foreground">Add a tag to easily find the screenshot later</p>
 					<div class="relative">
 						<Search
 							class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
