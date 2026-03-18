@@ -2,9 +2,8 @@
 	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
-	import { Download, Heart, Maximize2, MoreVertical, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
+	import { Download, FolderOpen, Heart, Maximize2, MoreVertical, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import { SCREENSHOT_DRAG_TYPE, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
@@ -321,19 +320,20 @@
 		</div>
 	</div>
 	{#if isEmpty}
-		<UploadDropZone
-			variant="empty"
-			emptyTitle="No uncategorised screenshots"
-			emptySubtitle="Drag and drop an image, or click to browse"
-			dropTitle="Drop your screenshot here"
-			dropSubtitle="Release to upload"
-			{isDragging}
-			onclick={() => fileInput?.click()}
-			onkeydown={(e) => e.key === 'Enter' && fileInput?.click()}
-			ondragover={handleDragOver}
-			ondragleave={handleDragLeave}
-			ondrop={handleDrop}
-		/>
+		<div
+			role="status"
+			class="flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border-2 border-dashed border-muted-foreground/20 bg-gradient-to-b from-muted/30 to-muted/10 px-8 py-16"
+		>
+			<div class="flex size-20 items-center justify-center rounded-2xl bg-muted/80">
+				<FolderOpen class="size-10 text-muted-foreground" aria-hidden="true" />
+			</div>
+			<div class="text-center space-y-2 max-w-sm">
+				<p class="text-base font-semibold tracking-tight">No uncategorised screenshots</p>
+				<p class="text-sm text-muted-foreground leading-relaxed">
+					Move screenshots from folders to add them here.
+				</p>
+			</div>
+		</div>
 	{:else}
 		<div
 			class="flex flex-col gap-6 min-h-0"
