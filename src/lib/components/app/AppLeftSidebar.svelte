@@ -182,14 +182,14 @@
 									return async ({ result }) => {
 										if (result.type === 'redirect') {
 											createFolderOpen = false;
-											await invalidateAll();
+											await goto(result.location, { invalidateAll: true });
 										}
 									};
 								}}
 								class="flex flex-col gap-4"
 							>
 								<div class="space-y-2">
-									<label for="folder-name" class="text-sm font-medium">Folder name</label>
+									<label for="folder-name" class="text-sm font-medium text-muted-foreground">Folder name</label>
 									<Input
 										id="folder-name"
 										name="name"
