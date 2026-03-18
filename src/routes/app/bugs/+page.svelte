@@ -9,7 +9,7 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	let deleteBugId = $state<number | null>(null);
+	let deleteConfirmBugId = $state<number | null>(null);
 
 	type BugReport = {
 		id: number;
@@ -86,7 +86,7 @@
 										size="icon"
 										class="size-8 text-muted-foreground hover:text-destructive"
 										aria-label="Delete bug"
-										onclick={() => (deleteBugId = b.id)}
+										onclick={() => (deleteConfirmBugId = b.id)}
 									>
 										<Trash2 class="size-4" />
 									</Button>
@@ -110,12 +110,10 @@
 	{/if}
 </div>
 
-{#if data.isAdmin}
+{#if data.isAdmin && deleteConfirmBugId}
 	<Dialog.Root
-		open={deleteBugId !== null}
-		onOpenChange={(o) => {
-			if (!o) deleteBugId = null;
-		}}
+		open={!!deleteConfirmBugId}
+		onOpenChange={(open) => !open && (deleteConfirmBugId = null)}
 	>
 		<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
@@ -124,27 +122,31 @@
 					This will permanently delete this bug report. This cannot be undone.
 				</Dialog.Description>
 			</Dialog.Header>
-			{#if deleteBugId}
-				<form
-					method="post"
-					action="/app/bugs?/deleteBug"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success' && result.data?.success) {
-								deleteBugId = null;
-								await invalidateAll();
-							}
-						};
-					}}
-					class="flex justify-end gap-2 pt-4"
-				>
-					<input type="hidden" name="bugId" value={deleteBugId} />
-					<Button type="button" variant="outline" onclick={() => (deleteBugId = null)}>
+			<form
+				method="post"
+				action="/app/bugs?/deleteBug"
+				use:enhance={() => {
+					return async ({ result }) => {
+						if (result.type === 'success' && result.data?.success) {
+							deleteConfirmBugId = null;
+							await invalidateAll();
+						}
+					};
+				}}
+				class="flex flex-col gap-4"
+			>
+				<input type="hidden" name="bugId" value={deleteConfirmBugId} />
+				<Dialog.Footer class="flex-row-reverse gap-2 sm:flex-row-reverse">
+					<Button type="submit" variant="destructive">Delete</Button>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => (deleteConfirmBugId = null)}
+					>
 						Cancel
 					</Button>
-					<Button type="submit" variant="destructive">Delete</Button>
-				</form>
-			{/if}
+				</Dialog.Footer>
+			</form>
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}
