@@ -88,6 +88,25 @@
 		fullscreenCtx?.setFullscreen(shot);
 	}
 
+	async function handlePermanentDelete(e: MouseEvent, shot: { id: number }) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (!confirm('Permanently delete this screenshot? This cannot be undone.')) return;
+		menuOpenForId = null;
+		const formData = new FormData();
+		formData.append('id', String(shot.id));
+		try {
+			const res = await fetch('/app/trash?/permanentDelete', { method: 'POST', body: formData });
+			const json = await res.json();
+			if (json?.success) {
+				selectedCtx?.setSelected(null);
+				await invalidateAll();
+			}
+		} catch (err) {
+			console.error('Permanent delete failed:', err);
+		}
+	}
+
 	async function handleFavouriteToggle(
 		e: MouseEvent,
 		shot: { id: number; favourite?: boolean; folder?: { id: number } | null; tags?: { id: number }[] }
@@ -188,7 +207,7 @@
 					>
 						<Heart
 							class="size-4 transition-colors {shot.favourite
-								? 'fill-rose-500 text-rose-500'
+								? 'fill-primary text-primary'
 								: 'text-white/90'}"
 						/>
 					</Button>
@@ -220,6 +239,14 @@
 								>
 									<Maximize2 class="size-4" />
 									Open image
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
+									onclick={(e) => handlePermanentDelete(e, shot)}
+								>
+									<Trash2 class="size-4" />
+									Delete permanently
 								</button>
 							</Popover.Content>
 						</Popover.Portal>

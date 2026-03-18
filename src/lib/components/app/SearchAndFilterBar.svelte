@@ -272,7 +272,7 @@
 							aria-pressed={filter.favouritesOnly}
 						>
 							<Heart
-								class="size-4 {filter.favouritesOnly ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground'}"
+								class="size-4 {filter.favouritesOnly ? 'fill-primary text-primary' : 'text-muted-foreground'}"
 							/>
 							<span class="hidden sm:inline">Favourites</span>
 						</button>
@@ -571,7 +571,7 @@
 			aria-label="Filter by favourites"
 			>
 				<Heart
-					class="size-4 transition-colors {filter.favouritesOnly ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground'}"
+					class="size-4 transition-colors {filter.favouritesOnly ? 'fill-primary text-primary' : 'text-muted-foreground'}"
 				/>
 				<span>Favourites</span>
 				{#if filter.favouritesOnly}

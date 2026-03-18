@@ -190,7 +190,7 @@
 					>
 						<Heart
 							class="size-6 transition-colors {favourite
-								? 'fill-rose-500 text-rose-500'
+								? 'fill-primary text-primary'
 								: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
 						/>
 					</button>

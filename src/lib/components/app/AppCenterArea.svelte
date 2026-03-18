@@ -23,17 +23,17 @@
 	});
 	setContext('screenshotFilters', filterStore);
 
-	/** Zoom level 0–100: 0 = smallest thumbnails (5 cols), 100 = biggest (2 cols) */
+	/** Zoom level 0–100: 50 = 5 cols (default), 0 = more cols, 100 = fewer cols */
 	const thumbnailZoomStore = writable(50);
 	setContext('thumbnailZoom', thumbnailZoomStore);
 </script>
 
 <div
-	class="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/30"
+	class="flex min-h-0 min-w-0 flex-1 flex-col"
 	data-slot="app-center"
 >
 	<!-- Search bar: fixed at top, no scroll -->
-	<div class="z-20 flex min-h-[var(--content-header-height)] shrink-0 flex-col justify-center bg-background/95 px-8 py-8 backdrop-blur-xl">
+	<div class="z-20 flex min-h-[var(--content-header-height)] shrink-0 flex-col justify-center bg-background/95 px-8 pt-4 pb-6 backdrop-blur-xl">
 		<div>
 			<SearchAndFilterBar
 				{tags}

@@ -37,8 +37,8 @@
 
   /* Primary — main brand/accent color */
   --base-primary: #000000; /* Black text on primary buttons */
-  --base-primary-bg: #ACFF00; /* Lime green button background */
-  --base-primary-bg-hover: #99e600; /* Slightly darker for hover */
+  --base-primary-bg: rgb(0, 234, 187); /* Teal tint */
+  --base-primary-bg-hover: rgb(0, 200, 160); /* Slightly darker for hover */
   --base-primary-foreground: var(--base-primary); /* Black text on light bg */
 
   /* Destructive — errors, delete actions */
@@ -106,7 +106,7 @@
   --spacing-section-gap: 1.5rem; /* gap-6 between sections */
   --spacing-grid-gap: 1rem; /* gap-4 in masonry grids */
   --spacing-empty-state-padding: 4rem; /* py-16 for empty states */
-  --content-header-height: 8.5rem; /* Height of search+filter bar for sticky title offset */
+  --content-header-height: 7rem; /* Height of search+filter bar for sticky title offset */
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * TYPOGRAPHY — Font sizes and weights.
@@ -155,8 +155,21 @@
   --base-900: #f8fafc;
   --base-950: #ffffff;
 
+  /* Fills — darker for dark mode surfaces */
+  --fill-50: #1e293b;
+  --fill-100: #1e293b;
+  --fill-200: #334155;
+  --fill-300: #475569;
+  --fill-400: #64748b;
+  --fill-500: #334155;
+  --fill-600: #475569;
+  --fill-700: #64748b;
+  --fill-800: #1e293b;
+  --fill-900: #0f172a;
+  --fill-950: #020617;
+
   /* Primary & destructive */
-  --base-primary: #3b82f6;
+  --base-primary: #000000;
   --base-primary-foreground: #fafafa;
   --base-destructive: #ef4444;
 
@@ -171,10 +184,10 @@
   --card: var(--fill-800);
   --popover: var(--fill-800);
 
-  /* Dark mode: primary button — same lime green, black text */
-  --primary: #ACFF00;
+  /* Dark mode: primary button — same teal tint, black text */
+  --primary: rgb(0, 234, 187);
   --primary-foreground: #000000;
-  --primary-hover: #99e600;
+  --primary-hover: rgb(0, 200, 160);
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.15);
 }
@@ -235,9 +248,9 @@
   height: calc(100vh - var(--spacing-top-bar) - 0.5rem);
 }
 
-/* Floating left sidebar: fill-500 background, rounded corners, no stroke or shadow */
+/* Floating left sidebar: fill-50 background (lightest), rounded corners, no stroke or shadow */
 .app-layout [data-slot="sidebar-inner"] {
-  --sidebar: var(--fill-500);
+  --sidebar: var(--fill-50);
   --sidebar-foreground: var(--base-900);
   --sidebar-accent: rgba(0, 0, 0, 0.08);
   --sidebar-accent-foreground: var(--base-900);
@@ -256,16 +269,20 @@
   --sidebar-border: rgba(0, 0, 0, 0.15);
 }
 
-/* Right side panel: same treatment as left sidebar — fill-500, rounded, no stroke or shadow */
+/* Sidebar menu badge: lighter text for screenshot counts */
+.app-layout [data-slot="sidebar-menu-badge"] {
+  color: var(--muted-foreground);
+}
+
+/* Right side panel: same treatment as left sidebar — fill-50 (lightest), rounded, no stroke or shadow */
 .app-layout [data-slot="app-right-sidebar"] {
-  background-color: var(--fill-500);
+  background-color: var(--fill-50);
   border: none;
   box-shadow: none;
 }
 
-/* Top bar: same treatment — fill-500, rounded, no stroke or shadow */
+/* Top bar: fixed to top, flat bar with subtle border */
 [data-slot="app-topbar"] {
-  background-color: var(--fill-500);
-  border: none;
+  background-color: var(--background);
   box-shadow: none;
 }

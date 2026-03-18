@@ -4,7 +4,7 @@ import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { screenshot, folder, screenshotTag } from '$lib/server/db/schema';
 import { enrichScreenshotsWithFolderAndTags } from '$lib/server/screenshot';
-import { eq, desc, and, isNull } from 'drizzle-orm';
+import { eq, desc, and, isNull, asc } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -59,14 +59,54 @@ export const actions: Actions = {
 		if (!name) {
 			return { success: false, error: 'Folder name is required' };
 		}
+		const [lastFolder] = await db
+			.select({ sortOrder: folder.sortOrder })
+			.from(folder)
+			.where(eq(folder.userId, session.user.id))
+			.orderBy(desc(folder.sortOrder))
+			.limit(1);
+		const nextSort = (lastFolder?.sortOrder ?? -1) + 1;
 		const [created] = await db
 			.insert(folder)
-			.values({ userId: session.user.id, name })
+			.values({ userId: session.user.id, name, sortOrder: nextSort })
 			.returning({ id: folder.id });
 		if (!created) {
 			return { success: false, error: 'Failed to create folder' };
 		}
 		return redirect(302, `/app/folder/${created.id}`);
+	},
+
+	reorderFolders: async (event) => {
+		const session = await auth.api.getSession({ headers: event.request.headers });
+		if (!session?.user) {
+			return { success: false, error: 'You must be logged in' };
+		}
+		const formData = await event.request.formData();
+		const idsRaw = formData.get('ids');
+		const idsStr = typeof idsRaw === 'string' ? idsRaw : '';
+		const ids = idsStr
+			.split(',')
+			.map((s) => parseInt(s.trim(), 10))
+			.filter((n) => !Number.isNaN(n));
+		if (ids.length === 0) {
+			return { success: false, error: 'No folders to reorder' };
+		}
+		// Verify all folders belong to user and update sortOrder
+		const userFolders = await db
+			.select({ id: folder.id })
+			.from(folder)
+			.where(eq(folder.userId, session.user.id));
+		const userFolderIds = new Set(userFolders.map((f) => f.id));
+		const validIds = ids.filter((id) => userFolderIds.has(id));
+		if (validIds.length !== ids.length) {
+			return { success: false, error: 'Invalid folder' };
+		}
+		await Promise.all(
+			validIds.map((id, index) =>
+				db.update(folder).set({ sortOrder: index }).where(and(eq(folder.id, id), eq(folder.userId, session.user.id)))
+			)
+		);
+		return { success: true };
 	},
 
 	moveToTrash: async (event) => {

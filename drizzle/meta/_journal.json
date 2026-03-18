@@ -85,6 +85,13 @@
       "when": 1773614200000,
       "tag": "0011_rating_to_favourite",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1773614300000,
+      "tag": "0012_add_folder_sort_order",
+      "breakpoints": true
     }
   ]
 }

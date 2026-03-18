@@ -2,7 +2,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import { ImageIcon, PenLine, Sparkles, Pencil } from '@lucide/svelte';
+	import { theme } from '$lib/theme.js';
+	import { ImageIcon, Moon, PenLine, Pencil, Sparkles, Sun } from '@lucide/svelte';
 
 	function scrollToSection(sectionId: string) {
 		const element = document.getElementById(sectionId);
@@ -37,8 +38,19 @@
 		</Button>
 	</nav>
 
-	<!-- Get started -->
-	<Button href="/demo/better-auth/login">Get started</Button>
+	<!-- Theme toggle + Get started -->
+	<div class="flex items-center gap-2">
+		<button
+			type="button"
+			class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+			aria-label="Toggle dark mode"
+			onclick={() => theme.toggle()}
+		>
+			<Sun class="size-4 dark:hidden" />
+			<Moon class="size-4 hidden dark:block" />
+		</button>
+		<Button href="/demo/better-auth/login">Get started</Button>
+	</div>
 </header>
 
 <main class="bg-background">

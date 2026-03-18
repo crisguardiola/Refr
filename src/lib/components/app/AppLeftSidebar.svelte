@@ -7,9 +7,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { SCREENSHOT_DRAG_TYPE } from '$lib/move-screenshot.js';
-	import { moveScreenshot } from '$lib/move-screenshot.js';
-	import { Folder, FolderOpen, FolderPlus, Heart, Trash2 } from '@lucide/svelte';
+	import { FOLDER_DRAG_TYPE, SCREENSHOT_DRAG_TYPE, moveScreenshot, reorderFolders } from '$lib/move-screenshot.js';
+	import { Folder, FolderOpen, FolderPlus, GripVertical, Heart, Trash2 } from '@lucide/svelte';
 
 	let {
 		folders = [],
@@ -36,6 +35,10 @@
 			e.preventDefault();
 			e.dataTransfer.dropEffect = 'move';
 			dropTarget = target;
+		} else if (typeof target === 'number' && e.dataTransfer?.types.includes(FOLDER_DRAG_TYPE)) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'move';
+			dropTarget = target;
 		}
 	}
 
@@ -47,9 +50,27 @@
 		e: DragEvent,
 		target: 'uncategorised' | 'trash' | number
 	) {
-		if (!e.dataTransfer?.types.includes(SCREENSHOT_DRAG_TYPE)) return;
 		e.preventDefault();
 		e.stopPropagation();
+		dropTarget = null;
+
+		if (e.dataTransfer?.types.includes(FOLDER_DRAG_TYPE) && typeof target === 'number') {
+			const raw = e.dataTransfer.getData(FOLDER_DRAG_TYPE);
+			const draggedId = raw ? parseInt(raw, 10) : NaN;
+			if (Number.isNaN(draggedId) || draggedId === target) return;
+			const ids = folders.map((f) => f.id);
+			const fromIdx = ids.indexOf(draggedId);
+			const toIdx = ids.indexOf(target);
+			if (fromIdx === -1 || toIdx === -1) return;
+			const reordered = [...ids];
+			reordered.splice(fromIdx, 1);
+			reordered.splice(toIdx, 0, draggedId);
+			const ok = await reorderFolders(reordered);
+			if (ok) await invalidateAll();
+			return;
+		}
+
+		if (!e.dataTransfer?.types.includes(SCREENSHOT_DRAG_TYPE)) return;
 		const raw = e.dataTransfer.getData(SCREENSHOT_DRAG_TYPE);
 		if (!raw) return;
 		let data: { screenshotId: number; tagIds: number[] };
@@ -60,7 +81,6 @@
 		}
 		const ok = await moveScreenshot(data.screenshotId, target, data.tagIds);
 		if (ok) await invalidateAll();
-		dropTarget = null;
 	}
 
 	const dropTargetClass = 'ring-2 ring-primary ring-offset-2 bg-primary/15 border border-primary/50';
@@ -196,7 +216,15 @@
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					{#each folders as f (f.id)}
-						<Sidebar.MenuItem>
+						<Sidebar.MenuItem
+							draggable="true"
+							ondragstart={(e) => {
+								if (!e.dataTransfer) return;
+								e.dataTransfer.setData(FOLDER_DRAG_TYPE, String(f.id));
+								e.dataTransfer.effectAllowed = 'move';
+							}}
+							class="cursor-grab active:cursor-grabbing"
+						>
 							<Sidebar.MenuButton
 								isActive={isFolderSelected(f.id)}
 								tooltipContent={f.name}
@@ -206,6 +234,7 @@
 								ondragleave={handleFolderDragLeave}
 								ondrop={(e) => handleFolderDrop(e, f.id)}
 							>
+								<GripVertical class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
 								<Folder class="size-4" />
 								<span>{f.name}</span>
 							</Sidebar.MenuButton>

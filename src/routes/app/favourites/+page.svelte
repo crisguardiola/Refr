@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Download, Heart, Maximize2, MoreVertical } from '@lucide/svelte';
+	import { Download, Heart, Maximize2, MoreVertical, Trash2 } from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { SCREENSHOT_DRAG_TYPE, type ScreenshotDragData } from '$lib/move-screenshot.js';
+	import { SCREENSHOT_DRAG_TYPE, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -97,6 +97,17 @@
 		e.stopPropagation();
 		menuOpenForId = null;
 		fullscreenCtx?.setFullscreen(shot);
+	}
+
+	async function handleMoveToTrash(e: MouseEvent, shot: { id: number; tags?: { id: number }[] }) {
+		e.preventDefault();
+		e.stopPropagation();
+		menuOpenForId = null;
+		const ok = await moveScreenshot(shot.id, 'trash', (shot.tags ?? []).map((t) => t.id));
+		if (ok) {
+			selectedCtx?.setSelected(null);
+			await invalidateAll();
+		}
 	}
 
 	async function handleFavouriteToggle(
@@ -198,7 +209,7 @@
 					>
 						<Heart
 							class="size-4 transition-colors {shot.favourite
-								? 'fill-rose-500 text-rose-500'
+								? 'fill-primary text-primary'
 								: 'text-white/90'}"
 						/>
 					</Button>
@@ -230,6 +241,14 @@
 								>
 									<Maximize2 class="size-4" />
 									Open image
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
+									onclick={(e) => handleMoveToTrash(e, shot)}
+								>
+									<Trash2 class="size-4" />
+									Move to trash
 								</button>
 							</Popover.Content>
 						</Popover.Portal>

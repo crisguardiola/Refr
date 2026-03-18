@@ -11,7 +11,7 @@ export const load: LayoutServerLoad = async (event) => {
 	const userId = event.locals.user.id;
 
 	const [folders, tags, countAll, countUncategorised, countFavourites, countTrash, tagCountRows] = await Promise.all([
-		db.select().from(folder).where(eq(folder.userId, userId)).orderBy(asc(folder.createdAt)),
+		db.select().from(folder).where(eq(folder.userId, userId)).orderBy(asc(folder.sortOrder), asc(folder.createdAt)),
 		db.select().from(tag).orderBy(asc(tag.dimension), asc(tag.sortOrder)),
 		db.$count(
 			screenshot,

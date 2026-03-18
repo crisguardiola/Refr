@@ -3,13 +3,14 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { LogOut, User } from '@lucide/svelte';
+	import { theme } from '$lib/theme.js';
+	import { LogOut, Moon, Sun, User } from '@lucide/svelte';
 
 	let { user }: { user: { name: string } } = $props();
 </script>
 
 <header
-	class="fixed inset-x-0 top-0 z-50 flex h-14 w-full shrink-0 items-center justify-between px-4 m-2 rounded-xl"
+	class="fixed inset-x-0 top-0 z-50 flex h-14 w-full shrink-0 items-center justify-between px-4 border-b border-border bg-background"
 	data-slot="app-topbar"
 >
 	<div class="flex items-center gap-2">
@@ -20,6 +21,15 @@
 		<a href="/app" class="text-lg font-semibold">Refr</a>
 	</div>
 	<div class="flex items-center gap-2">
+		<button
+			type="button"
+			class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+			aria-label="Toggle dark mode"
+			onclick={() => theme.toggle()}
+		>
+			<Sun class="size-4 dark:hidden" />
+			<Moon class="size-4 hidden dark:block" />
+		</button>
 		<Popover.Root>
 			<Popover.Trigger
 				class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
