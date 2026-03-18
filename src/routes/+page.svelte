@@ -72,7 +72,7 @@
 
 			<div class="flex flex-col gap-4 sm:flex-row sm:justify-center">
 				<Button size="lg" href="/demo/better-auth/login">Log in</Button>
-				<Button variant="outline" size="lg" href="/demo/better-auth/login">Create account</Button>
+				<Button variant="outline" size="lg" href="/demo/better-auth/login?signup=true">Create account</Button>
 			</div>
 		</div>
 	</section>
