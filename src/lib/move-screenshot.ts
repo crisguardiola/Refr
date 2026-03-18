@@ -43,6 +43,23 @@ export async function moveScreenshot(
 }
 
 /**
+ * Duplicates a screenshot in the same folder.
+ * @param screenshotId - The screenshot ID to duplicate
+ * @returns The new screenshot ID if successful, null otherwise
+ */
+export async function duplicateScreenshot(screenshotId: number): Promise<number | null> {
+	try {
+		const formData = new FormData();
+		formData.append('id', String(screenshotId));
+		const res = await fetch('/app/screenshot/duplicate', { method: 'POST', body: formData });
+		const data = await res.json();
+		return data?.success === true ? data.id : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Reorders folders by their IDs. The order of ids in the array is the new order.
  */
 export async function reorderFolders(folderIds: number[]): Promise<boolean> {

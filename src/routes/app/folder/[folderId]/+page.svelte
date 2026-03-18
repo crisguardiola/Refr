@@ -3,13 +3,13 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Download, Heart, Maximize2, MoreVertical, Pencil, Settings, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
+	import { Copy, Download, Heart, Maximize2, MoreVertical, Pencil, Settings, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
 	import UploadDropZone from '$lib/components/app/UploadDropZone.svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { SCREENSHOT_DRAG_TYPE, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
+	import { SCREENSHOT_DRAG_TYPE, duplicateScreenshot, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
 	import { groupScreenshotsByMonth } from '$lib/group-screenshots-by-month.js';
@@ -265,6 +265,16 @@
 		const ok = await moveScreenshot(shot.id, 'trash', (shot.tags ?? []).map((t) => t.id));
 		if (ok) {
 			selectedCtx?.setSelected(null);
+			await invalidateAll();
+		}
+	}
+
+	async function handleDuplicate(e: MouseEvent, shot: { id: number }) {
+		e.preventDefault();
+		e.stopPropagation();
+		menuOpenForId = null;
+		const newId = await duplicateScreenshot(shot.id);
+		if (newId != null) {
 			await invalidateAll();
 		}
 	}
@@ -596,6 +606,14 @@
 								>
 									<Maximize2 class="size-4" />
 									Open image
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+									onclick={(e) => handleDuplicate(e, shot)}
+								>
+									<Copy class="size-4" />
+									Duplicate image
 								</button>
 								<button
 									type="button"

@@ -297,8 +297,6 @@
 			{/if}
 			<div
 				class="relative min-h-0 flex-1 flex items-center justify-center overflow-hidden"
-				onclick={(e) => e.stopPropagation()}
-				onkeydown={(e) => e.stopPropagation()}
 				role="presentation"
 			>
 				{#if fullscreenEditMode}

@@ -2,9 +2,9 @@
 	import { getContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
-	import { Download, FolderOpen, Heart, Maximize2, MoreVertical, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
+	import { Copy, Download, FolderOpen, Heart, Maximize2, MoreVertical, Square, SquareCheck, Trash2, Upload, Workflow } from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { SCREENSHOT_DRAG_TYPE, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
+	import { SCREENSHOT_DRAG_TYPE, duplicateScreenshot, moveScreenshot, type ScreenshotDragData } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -229,6 +229,16 @@
 		}
 	}
 
+	async function handleDuplicate(e: MouseEvent, shot: { id: number }) {
+		e.preventDefault();
+		e.stopPropagation();
+		menuOpenForId = null;
+		const newId = await duplicateScreenshot(shot.id);
+		if (newId != null) {
+			await invalidateAll();
+		}
+	}
+
 	async function handleBulkDownload() {
 		for (const shot of selectedScreenshots) {
 			const url = cloudinaryUrl(shot.url, 'detail');
@@ -433,6 +443,14 @@
 								>
 									<Maximize2 class="size-4" />
 									Open image
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+									onclick={(e) => handleDuplicate(e, shot)}
+								>
+									<Copy class="size-4" />
+									Duplicate image
 								</button>
 								<button
 									type="button"

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Download, Heart, Maximize2, MoreVertical, RotateCcw, Square, SquareCheck, Trash2 } from '@lucide/svelte';
+	import { Copy, Download, Heart, Maximize2, MoreVertical, RotateCcw, Square, SquareCheck, Trash2 } from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
+	import { duplicateScreenshot } from '$lib/move-screenshot.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cloudinaryUrl } from '$lib/cloudinary.js';
 	import { filterScreenshots } from '$lib/filter-screenshots.js';
@@ -109,6 +110,16 @@
 		e.stopPropagation();
 		menuOpenForId = null;
 		fullscreenCtx?.setFullscreen(shot);
+	}
+
+	async function handleDuplicate(e: MouseEvent, shot: { id: number }) {
+		e.preventDefault();
+		e.stopPropagation();
+		menuOpenForId = null;
+		const newId = await duplicateScreenshot(shot.id);
+		if (newId != null) {
+			await invalidateAll();
+		}
 	}
 
 	async function handlePermanentDelete(e: MouseEvent, shot: { id: number }) {
@@ -341,6 +352,14 @@
 								>
 									<Maximize2 class="size-4" />
 									Open image
+								</button>
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+									onclick={(e) => handleDuplicate(e, shot)}
+								>
+									<Copy class="size-4" />
+									Duplicate image
 								</button>
 								<button
 									type="button"
