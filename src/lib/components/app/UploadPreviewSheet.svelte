@@ -4,7 +4,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Heart } from '@lucide/svelte';
+	import { Heart, Search } from '@lucide/svelte';
+	import { getSectionForLabel } from '$lib/tags.js';
 
 	type Folder = { id: number; name: string; count?: number };
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
@@ -42,6 +43,7 @@
 	let favourite = $state(false);
 	let uploadResult = $state<{ success?: boolean; error?: string } | null>(null);
 	let isSubmitting = $state(false);
+	let uiElementsSearch = $state('');
 
 	$effect(() => {
 		if (open) {
@@ -52,12 +54,59 @@
 			selectedTagIds = new Set();
 			favourite = false;
 			uploadResult = null;
+			uiElementsSearch = '';
 		}
+	});
+
+	/** UI Elements only: Control, View, Overlay, Imagery (from PLANNING.md) */
+	const uiElementsBySection = $derived.by(() => {
+		const q = uiElementsSearch.trim().toLowerCase();
+		const uiTags = tags.filter((t) => t.dimension === 'ui_type');
+		const sectionMap = new Map<string, Tag[]>();
+		for (const t of uiTags) {
+			const section = getSectionForLabel('ui_type', t.label);
+			if (section && (!q || t.label.toLowerCase().includes(q))) {
+				const arr = sectionMap.get(section) ?? [];
+				arr.push(t);
+				sectionMap.set(section, arr);
+			}
+		}
+		const result: { section: string; tags: Tag[] }[] = [];
+		for (const section of ['Control', 'View', 'Overlay', 'Imagery']) {
+			const tagsInSection = sectionMap.get(section);
+			if (tagsInSection?.length) result.push({ section, tags: tagsInSection });
+		}
+		return result;
+	});
+
+	/** Screens: separate from UI Elements */
+	const screensBySection = $derived.by(() => {
+		const q = uiElementsSearch.trim().toLowerCase();
+		const screenTags = tags.filter((t) => t.dimension === 'screen');
+		const sectionMap = new Map<string, Tag[]>();
+		for (const t of screenTags) {
+			const section = getSectionForLabel('screen', t.label) ?? 'Other';
+			if (!q || t.label.toLowerCase().includes(q)) {
+				const arr = sectionMap.get(section) ?? [];
+				arr.push(t);
+				sectionMap.set(section, arr);
+			}
+		}
+		const sectionOrder = [
+			'Utility', 'Misc', 'Content', 'Actions', 'Data', 'User Collections', 'Communication',
+			'Commerce & Finance', 'Social', 'New User Experience', 'Account Management', 'Other'
+		];
+		const result: { section: string; tags: Tag[] }[] = [];
+		for (const section of sectionOrder) {
+			const tagsInSection = sectionMap.get(section);
+			if (tagsInSection?.length) result.push({ section, tags: tagsInSection });
+		}
+		return result;
 	});
 
 	const tagsByDimension = $derived(
 		(() => {
-			const map: Record<string, Tag[]> = { screen: [], ui_type: [], color: [] };
+			const map: Record<string, Tag[]> = { screen: [], ui_type: [], color: [], pattern: [] };
 			for (const t of tags) {
 				if (map[t.dimension]) map[t.dimension].push(t);
 			}
@@ -125,16 +174,16 @@
 		onOpenChange?.(o);
 	}}
 >
-	<Dialog.Content class="w-[min(24rem,calc(100vw-2rem))] max-h-[85vh] flex flex-col gap-4 overflow-hidden p-0">
-		<Dialog.Header class="px-4 pt-4 pb-0">
-			<Dialog.Title>Add screenshot</Dialog.Title>
-			<Dialog.Description>
+	<Dialog.Content class="w-[min(32rem,calc(100vw-2rem))] max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
+		<Dialog.Header class="px-6 pt-8 pb-4">
+			<Dialog.Title class="text-2xl font-semibold tracking-tight">Add screenshot</Dialog.Title>
+			<Dialog.Description class="mt-1.5 text-sm text-muted-foreground">
 				Add an optional note and assign to a folder.
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if previewUrl}
-			<div class="flex flex-1 flex-col gap-4 overflow-auto px-4">
-				<div class="aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted">
+			<div class="flex flex-1 flex-col gap-6 overflow-auto px-6 pb-6">
+				<div class="aspect-square w-full overflow-hidden rounded-lg bg-muted">
 					<img
 						src={previewUrl}
 						alt={fileName}
@@ -142,74 +191,141 @@
 					/>
 				</div>
 
-				<div class="space-y-2">
-					<label for="folder-select" class="text-sm font-medium">Folder</label>
-					<select
-						id="folder-select"
-						bind:value={folderValue}
-						onchange={(e) => {
-							const v = (e.target as HTMLSelectElement).value;
-							folderValue = v;
-							createNewFolder = v === 'new';
-						}}
-						class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-					>
-						<option value="">Leave unassigned</option>
-						{#each folders as f (f.id)}
-							<option value={String(f.id)}>{f.name}</option>
-						{/each}
-						<option value="new">Create new folder</option>
-					</select>
-					{#if createNewFolder}
+				<div class="space-y-2 pt-1">
+					<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Details</p>
+					<div class="space-y-3">
+						<div class="space-y-2">
+							<label for="folder-select" class="block text-xs text-muted-foreground/80">Folder</label>
+							<select
+								id="folder-select"
+								bind:value={folderValue}
+								onchange={(e) => {
+									const v = (e.target as HTMLSelectElement).value;
+									folderValue = v;
+									createNewFolder = v === 'new';
+								}}
+								class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							>
+								<option value="">Leave unassigned</option>
+								{#each folders as f (f.id)}
+									<option value={String(f.id)}>{f.name}</option>
+								{/each}
+								<option value="new">Create new folder</option>
+							</select>
+							{#if createNewFolder}
+								<Input
+									bind:value={newFolderName}
+									placeholder="Folder name"
+									class="mt-1 w-full"
+								/>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<label for="note-input" class="block text-xs text-muted-foreground/80">Note</label>
+							<Input
+								id="note-input"
+								bind:value={noteText}
+								placeholder="Why are you saving this? (optional)"
+								class="w-full"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-2 pt-1">
+					<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Favourite</p>
+					<div class="flex items-center gap-3">
+						<button
+							type="button"
+							onclick={() => favourite = !favourite}
+							class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							aria-label={favourite ? 'Remove from favourites' : 'Add to favourites'}
+							aria-pressed={favourite}
+						>
+							<Heart
+								class="size-6 transition-colors {favourite
+									? 'fill-primary text-primary'
+									: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
+							/>
+						</button>
+						<span class="text-sm text-muted-foreground">
+							{favourite ? 'Will be added to favourites' : 'Click to favourite'}
+						</span>
+					</div>
+				</div>
+
+				<div class="space-y-3 border-t border-border pt-5">
+					<div class="relative">
+						<Search
+							class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+							aria-hidden="true"
+						/>
 						<Input
-							bind:value={newFolderName}
-							placeholder="Folder name"
-							class="w-full"
+							bind:value={uiElementsSearch}
+							placeholder="Search screens, controls, views..."
+							class="h-8 pl-8 text-sm"
+							aria-label="Search tags"
 						/>
-					{/if}
-				</div>
-
-				<div class="space-y-2">
-					<label for="note-input" class="text-sm font-medium">Note (optional)</label>
-					<Input
-						id="note-input"
-						bind:value={noteText}
-						placeholder="Why are you saving this? (optional)"
-						class="w-full"
-					/>
-				</div>
-
-				<div class="space-y-2">
-					<p class="text-sm font-medium">Favourite</p>
-					<button
-						type="button"
-						onclick={() => favourite = !favourite}
-						class="rounded p-1 transition-colors hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						aria-label={favourite ? 'Remove from favourites' : 'Add to favourites'}
-						aria-pressed={favourite}
-					>
-						<Heart
-							class="size-6 transition-colors {favourite
-								? 'fill-primary text-primary'
-								: 'text-muted-foreground/40 hover:text-muted-foreground/70'}"
-						/>
-					</button>
-					<p class="text-xs text-muted-foreground">
-						{favourite ? 'Will be added to favourites' : 'Click to favourite'}
-					</p>
-				</div>
-
-				<div class="space-y-3">
-					<p class="text-sm font-medium">UI Elements (optional)</p>
-					{#each ['screen', 'ui_type', 'color'] as dim}
-						{#if tagsByDimension[dim]?.length}
-							<div class="space-y-1.5">
-								<span class="text-xs text-muted-foreground capitalize">{dim === 'ui_type' ? 'UI element' : dim === 'screen' ? 'Screen' : dim}</span>
+					</div>
+					<div class="max-h-48 overflow-y-auto space-y-4 pr-1">
+						{#if uiElementsBySection.length > 0}
+							<div class="space-y-3">
+								<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">UI Elements</p>
+								{#each uiElementsBySection as { section, tags: sectionTags }}
+									<div class="space-y-2">
+										<span class="block text-xs font-medium text-muted-foreground/90">{section}</span>
+										<div class="flex flex-wrap gap-2">
+											{#each sectionTags as t (t.id)}
+												<button
+													type="button"
+													class="rounded-full border px-3 py-1.5 text-xs transition-colors {selectedTagIds.has(t.id)
+														? 'border-primary bg-primary text-primary-foreground'
+														: 'border-border bg-muted hover:bg-muted/80'}"
+													onclick={() => toggleTag(t.id)}
+												>
+													{t.label}
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+						{#if screensBySection.length > 0}
+							<div class="space-y-3 pt-5">
+								<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Screens</p>
+								{#each screensBySection as { section, tags: sectionTags }}
+									<div class="space-y-2">
+										<span class="block text-xs font-medium text-muted-foreground/90">{section}</span>
+										<div class="flex flex-wrap gap-2">
+											{#each sectionTags as t (t.id)}
+												<button
+													type="button"
+													class="rounded-full border px-3 py-1.5 text-xs transition-colors {selectedTagIds.has(t.id)
+														? 'border-primary bg-primary text-primary-foreground'
+														: 'border-border bg-muted hover:bg-muted/80'}"
+													onclick={() => toggleTag(t.id)}
+												>
+													{t.label}
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+						{#if tagsByDimension.pattern?.length}
+							<div class="space-y-2">
+								<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pattern</p>
 								<div class="flex flex-wrap gap-2">
-									{#each tagsByDimension[dim] as t (t.id)}
+									{#each tagsByDimension.pattern.filter(
+										(t) =>
+											!uiElementsSearch.trim() ||
+											t.label.toLowerCase().includes(uiElementsSearch.trim().toLowerCase())
+									) as t (t.id)}
 										<button
 											type="button"
-											class="rounded-full border px-3 py-1 text-xs transition-colors {selectedTagIds.has(t.id)
+											class="rounded-full border px-3 py-1.5 text-xs transition-colors {selectedTagIds.has(t.id)
 												? 'border-primary bg-primary text-primary-foreground'
 												: 'border-border bg-muted hover:bg-muted/80'}"
 											onclick={() => toggleTag(t.id)}
@@ -220,7 +336,7 @@
 								</div>
 							</div>
 						{/if}
-					{/each}
+					</div>
 				</div>
 
 				{#if uploadResult}
@@ -235,7 +351,7 @@
 				{/if}
 			</div>
 		{/if}
-		<Dialog.Footer class="flex-row-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row-reverse">
+		<Dialog.Footer class="flex-row-reverse gap-3 border-t border-border px-6 py-4 sm:flex-row-reverse">
 			<Button onclick={handleSave} disabled={isSubmitting || !pendingFile}>
 				{isSubmitting ? 'Saving…' : 'Save'}
 			</Button>

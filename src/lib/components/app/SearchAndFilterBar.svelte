@@ -3,17 +3,13 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { Search, Filter, X, Heart, ChevronDown } from '@lucide/svelte';
 	import type { Writable } from 'svelte/store';
+	import { getSectionForLabel } from '$lib/tags.js';
 
 	type Tag = { id: number; dimension: string; label: string; sortOrder: number };
 
 	const SEARCH_DEBOUNCE_MS = 200;
 	const TAG_SEARCH_THRESHOLD = 6;
-	const DIMENSION_LABELS: Record<string, string> = {
-		screen: 'Screens',
-		ui_type: 'UI Elements',
-		color: 'Color',
-		pattern: 'Pattern'
-	};
+	const SECTION_HEADER_CLASS = 'text-xs font-medium uppercase tracking-wider text-muted-foreground';
 
 	let {
 		tags = [],
@@ -26,16 +22,14 @@
 	} = $props();
 
 	let popoverOpen = $state(false);
-	let activeFilterSection = $state<'screens' | 'ui_elements' | null>(null);
+	let activeFilterSection = $state<'screens' | 'ui_elements' | 'pattern' | null>(null);
 	let searchInputValue = $state('');
 	let tagSearchQuery = $state('');
 	let screenSearchQuery = $state('');
 	let screensFilterOpen = $state(false);
 	let uiElementsFilterOpen = $state(false);
-	let favouritesFilterOpen = $state(false);
 	let screensRef: HTMLDetailsElement;
 	let uiElementsRef: HTMLDetailsElement;
-	let favouritesRef: HTMLDetailsElement;
 
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -55,8 +49,8 @@
 		if (!viewingScreens) screenSearchQuery = '';
 	});
 	$effect(() => {
-		const viewingUiElements = uiElementsFilterOpen || (popoverOpen && activeFilterSection === 'ui_elements');
-		if (!viewingUiElements) tagSearchQuery = '';
+		const viewingTags = uiElementsFilterOpen || (popoverOpen && ['ui_elements', 'pattern'].includes(activeFilterSection ?? ''));
+		if (!viewingTags) tagSearchQuery = '';
 	});
 
 	$effect(() => {
@@ -79,17 +73,6 @@
 		document.addEventListener('click', handleClickOutside);
 		return () => document.removeEventListener('click', handleClickOutside);
 	});
-	$effect(() => {
-		if (!favouritesFilterOpen) return;
-		function handleClickOutside(e: MouseEvent) {
-			if (favouritesRef && !favouritesRef.contains(e.target as Node)) {
-				favouritesFilterOpen = false;
-			}
-		}
-		document.addEventListener('click', handleClickOutside);
-		return () => document.removeEventListener('click', handleClickOutside);
-	});
-
 	function debouncedUpdateSearch(value: string) {
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
@@ -129,10 +112,8 @@
 		popoverOpen = false;
 	}
 
-	function toggleFavouritesFilter(closePopover = false) {
+	function toggleFavouritesFilter() {
 		filterStore.update((prev) => ({ ...prev, favouritesOnly: !prev.favouritesOnly }));
-		favouritesFilterOpen = false;
-		if (closePopover) popoverOpen = false;
 	}
 
 	function clearScreensFilter() {
@@ -144,17 +125,19 @@
 	}
 
 	function clearUiElementsFilter() {
-		const uiIds = new Set(
-			tags.filter((t) => ['ui_type', 'color', 'pattern'].includes(t.dimension)).map((t) => t.id)
-		);
+		const ids = new Set(tags.filter((t) => t.dimension === 'ui_type').map((t) => t.id));
 		filterStore.update((prev) => ({
 			...prev,
-			selectedTagIds: prev.selectedTagIds.filter((id) => !uiIds.has(id))
+			selectedTagIds: prev.selectedTagIds.filter((id) => !ids.has(id))
 		}));
 	}
 
-	function clearFavouritesFilter() {
-		filterStore.update((prev) => ({ ...prev, favouritesOnly: false }));
+	function clearPatternFilter() {
+		const ids = new Set(tags.filter((t) => t.dimension === 'pattern').map((t) => t.id));
+		filterStore.update((prev) => ({
+			...prev,
+			selectedTagIds: prev.selectedTagIds.filter((id) => !ids.has(id))
+		}));
 	}
 
 	const filter = $derived($filterStore);
@@ -163,43 +146,82 @@
 	);
 	const selectedTags = $derived(tags.filter((t) => filter.selectedTagIds.includes(t.id)));
 
+	/** UI Elements only: Control, View, Overlay, Imagery */
+	const uiElementsBySection = $derived.by(() => {
+		const q = tagSearchQuery.trim().toLowerCase();
+		const uiTags = tags.filter((t) => t.dimension === 'ui_type');
+		const sectionMap = new Map<string, Tag[]>();
+		for (const t of uiTags) {
+			const section = getSectionForLabel('ui_type', t.label);
+			if (section && (!q || t.label.toLowerCase().includes(q))) {
+				const arr = sectionMap.get(section) ?? [];
+				arr.push(t);
+				sectionMap.set(section, arr);
+			}
+		}
+		const result: { section: string; tags: Tag[] }[] = [];
+		for (const section of ['Control', 'View', 'Overlay', 'Imagery']) {
+			const tagsInSection = sectionMap.get(section);
+			if (tagsInSection?.length) result.push({ section, tags: tagsInSection });
+		}
+		return result;
+	});
+
+	/** Screens: Utility, Misc, Content, etc. */
+	const screensBySection = $derived.by(() => {
+		const q = screenSearchQuery.trim().toLowerCase();
+		const screenTags = tags.filter((t) => t.dimension === 'screen');
+		const sectionMap = new Map<string, Tag[]>();
+		for (const t of screenTags) {
+			const section = getSectionForLabel('screen', t.label) ?? 'Other';
+			if (!q || t.label.toLowerCase().includes(q)) {
+				const arr = sectionMap.get(section) ?? [];
+				arr.push(t);
+				sectionMap.set(section, arr);
+			}
+		}
+		const sectionOrder = [
+			'Utility', 'Misc', 'Content', 'Actions', 'Data', 'User Collections', 'Communication',
+			'Commerce & Finance', 'Social', 'New User Experience', 'Account Management', 'Other'
+		];
+		const result: { section: string; tags: Tag[] }[] = [];
+		for (const section of sectionOrder) {
+			const tagsInSection = sectionMap.get(section);
+			if (tagsInSection?.length) result.push({ section, tags: tagsInSection });
+		}
+		return result;
+	});
+
 	const tagsByDimension = $derived(
 		(() => {
-			const q = tagSearchQuery.trim().toLowerCase();
-			const filteredTags = q
-				? tags.filter((t) => t.label.toLowerCase().includes(q))
-				: tags;
-			const map: Record<string, Tag[]> = {};
-			for (const t of filteredTags) {
-				if (t.dimension === 'screen') continue;
-				if (!map[t.dimension]) map[t.dimension] = [];
-				map[t.dimension].push(t);
+			const map: Record<string, Tag[]> = { screen: [], ui_type: [], color: [], pattern: [] };
+			for (const t of tags) {
+				if (map[t.dimension]) map[t.dimension].push(t);
 			}
-			const order = ['ui_type', 'color', 'pattern'];
-			return order.filter((d) => map[d]?.length).map((d) => ({ dimension: d, tags: map[d] }));
+			return map;
 		})()
 	);
 
 	const screenTags = $derived(tags.filter((t) => t.dimension === 'screen'));
-	const filteredScreenTags = $derived(
-		(() => {
-			const q = screenSearchQuery.trim().toLowerCase();
-			return q ? screenTags.filter((t) => t.label.toLowerCase().includes(q)) : screenTags;
-		})()
-	);
+	const patternTags = $derived(tags.filter((t) => t.dimension === 'pattern'));
+
+	const filteredPatternTags = $derived.by(() => {
+		const q = tagSearchQuery.trim().toLowerCase();
+		return q ? patternTags.filter((t) => t.label.toLowerCase().includes(q)) : patternTags;
+	});
 
 	const selectedScreenCount = $derived(
 		filter.selectedTagIds.filter((id) => tags.find((t) => t.id === id)?.dimension === 'screen').length
 	);
 	const selectedUiElementCount = $derived(
-		filter.selectedTagIds.filter((id) => {
-			const t = tags.find((t) => t.id === id);
-			return t && (t.dimension === 'ui_type' || t.dimension === 'color' || t.dimension === 'pattern');
-		}).length
+		filter.selectedTagIds.filter((id) => tags.find((t) => t.id === id)?.dimension === 'ui_type').length
+	);
+	const selectedPatternCount = $derived(
+		filter.selectedTagIds.filter((id) => tags.find((t) => t.id === id)?.dimension === 'pattern').length
 	);
 
-	const showTagSearch = $derived(
-		tagsByDimension.reduce((acc, d) => acc + d.tags.length, 0) >= TAG_SEARCH_THRESHOLD
+	const showUiElementsSearch = $derived(
+		tagsByDimension.ui_type?.length >= TAG_SEARCH_THRESHOLD
 	);
 
 	function onSearchInput(e: Event) {
@@ -266,7 +288,7 @@
 								: 'border-input bg-muted/50 hover:bg-muted'}"
 						onclick={(e) => {
 									e.stopPropagation();
-									toggleFavouritesFilter(true);
+									toggleFavouritesFilter();
 								}}
 							aria-label={filter.favouritesOnly ? 'Remove favourites filter' : 'Show favourites only'}
 							aria-pressed={filter.favouritesOnly}
@@ -287,8 +309,7 @@
 							{#if screenTags.length > 0}
 								<button
 									type="button"
-									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection ===
-									'screens'
+									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'screens'
 										? 'bg-background text-foreground'
 										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
 									onclick={(e) => {
@@ -299,40 +320,56 @@
 									<Filter class="size-4 shrink-0" />
 									<span>Screens</span>
 									{#if selectedScreenCount > 0}
-										<span
-											class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
-										>
+										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
 											{selectedScreenCount}
 										</span>
 									{/if}
 								</button>
 							{/if}
-							<button
-								type="button"
-								class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection ===
-								'ui_elements'
-									? 'bg-background text-foreground'
-									: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
-								onclick={(e) => {
-									e.stopPropagation();
-									activeFilterSection =
-										activeFilterSection === 'ui_elements' ? null : 'ui_elements';
-								}}
-							>
-								<Filter class="size-4 shrink-0" />
-								<span>UI Elements</span>
-								{#if selectedUiElementCount > 0}
-									<span
-										class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
-									>
-										{selectedUiElementCount}
-									</span>
-								{/if}
-							</button>
+							{#if uiElementsBySection.length > 0}
+								<button
+									type="button"
+									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'ui_elements'
+										? 'bg-background text-foreground'
+										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
+									onclick={(e) => {
+										e.stopPropagation();
+										activeFilterSection = activeFilterSection === 'ui_elements' ? null : 'ui_elements';
+									}}
+								>
+									<Filter class="size-4 shrink-0" />
+									<span>UI Elements</span>
+									{#if selectedUiElementCount > 0}
+										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+											{selectedUiElementCount}
+										</span>
+									{/if}
+								</button>
+							{/if}
+							{#if patternTags.length > 0}
+								<button
+									type="button"
+									class="flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors {activeFilterSection === 'pattern'
+										? 'bg-background text-foreground'
+										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}"
+									onclick={(e) => {
+										e.stopPropagation();
+										activeFilterSection = activeFilterSection === 'pattern' ? null : 'pattern';
+									}}
+								>
+									<Filter class="size-4 shrink-0" />
+									<span>Pattern</span>
+									{#if selectedPatternCount > 0}
+										<span class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+											{selectedPatternCount}
+										</span>
+									{/if}
+								</button>
+							{/if}
 						</nav>
 						<div class="min-w-0 flex-1 overflow-y-auto p-3">
 							{#if activeFilterSection === 'screens'}
-								<div class="space-y-3">
+								<div class="space-y-4">
 									{#if screenTags.length >= TAG_SEARCH_THRESHOLD}
 										<div class="relative">
 											<Search
@@ -349,51 +386,11 @@
 											/>
 										</div>
 									{/if}
-									<div class="flex flex-wrap gap-2">
-										{#each filteredScreenTags as tag (tag.id)}
-											{@const count = tagCounts[tag.id]}
-											<button
-												type="button"
-												class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-													? 'border-primary bg-primary text-primary-foreground'
-													: 'border-input bg-muted/50 hover:bg-muted'}"
-												onclick={(e) => {
-													e.stopPropagation();
-													selectTagInPopover(tag.id);
-												}}
-											>
-												{tag.label}{#if count != null}
-													<span class="ml-1 opacity-70">({count})</span>
-												{/if}
-											</button>
-										{/each}
-									</div>
-								</div>
-							{:else if activeFilterSection === 'ui_elements'}
-								<div class="space-y-3">
-									{#if showTagSearch}
-										<div class="relative">
-											<Search
-												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-												aria-hidden="true"
-											/>
-											<Input
-												bind:value={tagSearchQuery}
-												type="search"
-												placeholder="Search UI elements..."
-												class="h-8 pl-8 text-xs"
-												aria-label="Search UI elements"
-												onclick={(e) => e.stopPropagation()}
-											/>
-										</div>
-									{/if}
-									{#each tagsByDimension as { dimension, tags: dimTags }}
-										<div>
-											<p class="mb-1.5 text-xs font-medium text-muted-foreground">
-												{DIMENSION_LABELS[dimension] ?? dimension}
-											</p>
+									{#each screensBySection as { section, tags: sectionTags }}
+										<div class="space-y-2">
+											<p class={SECTION_HEADER_CLASS}>{section}</p>
 											<div class="flex flex-wrap gap-2">
-												{#each dimTags as tag (tag.id)}
+												{#each sectionTags as tag (tag.id)}
 													{@const count = tagCounts[tag.id]}
 													<button
 														type="button"
@@ -414,9 +411,91 @@
 										</div>
 									{/each}
 								</div>
+							{:else if activeFilterSection === 'ui_elements'}
+								<div class="space-y-4">
+									{#if showUiElementsSearch}
+										<div class="relative">
+											<Search
+												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+												aria-hidden="true"
+											/>
+											<Input
+												bind:value={tagSearchQuery}
+												type="search"
+												placeholder="Search UI elements..."
+												class="h-8 pl-8 text-xs"
+												aria-label="Search UI elements"
+												onclick={(e) => e.stopPropagation()}
+											/>
+										</div>
+									{/if}
+									{#each uiElementsBySection as { section, tags: sectionTags }}
+										<div class="space-y-2">
+											<p class={SECTION_HEADER_CLASS}>{section}</p>
+											<div class="flex flex-wrap gap-2">
+												{#each sectionTags as tag (tag.id)}
+													{@const count = tagCounts[tag.id]}
+													<button
+														type="button"
+														class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
+															? 'border-primary bg-primary text-primary-foreground'
+															: 'border-input bg-muted/50 hover:bg-muted'}"
+														onclick={(e) => {
+															e.stopPropagation();
+															selectTagInPopover(tag.id);
+														}}
+													>
+														{tag.label}{#if count != null}
+															<span class="ml-1 opacity-70">({count})</span>
+														{/if}
+													</button>
+												{/each}
+											</div>
+										</div>
+									{/each}
+								</div>
+							{:else if activeFilterSection === 'pattern'}
+								<div class="space-y-4">
+									{#if patternTags.length >= TAG_SEARCH_THRESHOLD}
+										<div class="relative">
+											<Search
+												class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+												aria-hidden="true"
+											/>
+											<Input
+												bind:value={tagSearchQuery}
+												type="search"
+												placeholder="Search patterns..."
+												class="h-8 pl-8 text-xs"
+												aria-label="Search patterns"
+												onclick={(e) => e.stopPropagation()}
+											/>
+										</div>
+									{/if}
+									<p class={SECTION_HEADER_CLASS}>Pattern</p>
+									<div class="flex flex-wrap gap-2">
+										{#each filteredPatternTags as tag (tag.id)}
+											{@const count = tagCounts[tag.id]}
+											<button
+												type="button"
+												class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
+													? 'border-primary bg-primary text-primary-foreground'
+													: 'border-input bg-muted/50 hover:bg-muted'}"
+												onclick={(e) => {
+													e.stopPropagation();
+													selectTagInPopover(tag.id);
+												}}
+											>
+												{tag.label}{#if count != null}
+													<span class="ml-1 opacity-70">({count})</span>
+												{/if}
+											</button>
+										{/each}
+									</div>
+								</div>
 							{:else}
 								<p class="text-sm text-muted-foreground">
-									Select Screens or UI Elements to filter by category.
+									Select a filter to refine your search.
 								</p>
 							{/if}
 						</div>
@@ -471,20 +550,27 @@
 							/>
 						</div>
 					{/if}
-					<div class="flex flex-wrap gap-2">
-						{#each filteredScreenTags as tag (tag.id)}
-							{@const count = tagCounts[tag.id]}
-							<button
-								type="button"
-								class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
-									? 'border-primary bg-primary text-primary-foreground'
-									: 'border-input bg-muted/50 hover:bg-muted'}"
-								onclick={() => toggleTag(tag.id)}
-							>
-								{tag.label}{#if count != null}
-									<span class="ml-1 opacity-70">({count})</span>
-								{/if}
-							</button>
+					<div class="space-y-4">
+						{#each screensBySection as { section, tags: sectionTags }}
+							<div class="space-y-2">
+								<p class={SECTION_HEADER_CLASS}>{section}</p>
+								<div class="flex flex-wrap gap-2">
+									{#each sectionTags as tag (tag.id)}
+										{@const count = tagCounts[tag.id]}
+										<button
+											type="button"
+											class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
+												? 'border-primary bg-primary text-primary-foreground'
+												: 'border-input bg-muted/50 hover:bg-muted'}"
+											onclick={() => toggleTag(tag.id)}
+										>
+											{tag.label}{#if count != null}
+												<span class="ml-1 opacity-70">({count})</span>
+											{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
 						{/each}
 					</div>
 				</div>
@@ -497,21 +583,22 @@
 		>
 			<summary
 				class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-input bg-background px-4 py-3 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			aria-label="Filter by UI elements"
+				aria-label="Filter by UI elements and pattern"
 			>
 				<Filter class="size-4 text-muted-foreground" />
 				<span>UI Elements</span>
-				{#if selectedUiElementCount > 0}
+				{#if selectedUiElementCount + selectedPatternCount > 0}
 					<button
 						type="button"
 						class="group/badge flex items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:bg-primary/90 min-w-[1.5rem]"
 						onclick={(e) => {
 							e.stopPropagation();
 							clearUiElementsFilter();
+							clearPatternFilter();
 						}}
 						aria-label="Clear UI elements filter"
 					>
-						<span class="group-hover/badge:hidden">{selectedUiElementCount}</span>
+						<span class="group-hover/badge:hidden">{selectedUiElementCount + selectedPatternCount}</span>
 						<X class="size-3 hidden group-hover/badge:inline-block" aria-hidden="true" />
 					</button>
 				{:else}
@@ -521,7 +608,7 @@
 			<div
 				class="absolute left-0 top-full z-50 mt-2 max-h-64 min-w-[280px] overflow-y-auto rounded-2xl border border-border bg-background p-3 shadow-lg"
 			>
-				{#if showTagSearch}
+				{#if showUiElementsSearch || patternTags.length >= TAG_SEARCH_THRESHOLD}
 					<div class="relative mb-3">
 						<Search
 							class="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -530,19 +617,43 @@
 						<Input
 							bind:value={tagSearchQuery}
 							type="search"
-							placeholder="Search UI elements..."
+							placeholder="Search UI elements, patterns..."
 							class="h-8 pl-8 text-xs"
-							aria-label="Search UI elements"
+							aria-label="Search tags"
 						/>
 					</div>
 				{/if}
-				{#each tagsByDimension as { dimension, tags: dimTags }}
-					<div class="mb-3 last:mb-0">
-						<p class="mb-1.5 text-xs font-medium text-muted-foreground">
-							{DIMENSION_LABELS[dimension] ?? dimension}
-						</p>
+				{#if uiElementsBySection.length > 0}
+					<div class="mb-4 space-y-2">
+						<p class={SECTION_HEADER_CLASS}>UI Elements</p>
+						{#each uiElementsBySection as { section, tags: sectionTags }}
+							<div class="space-y-2">
+								<span class="block text-xs font-medium text-muted-foreground/90">{section}</span>
+								<div class="flex flex-wrap gap-2">
+									{#each sectionTags as tag (tag.id)}
+										{@const count = tagCounts[tag.id]}
+										<button
+											type="button"
+											class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {filter.selectedTagIds.includes(tag.id)
+												? 'border-primary bg-primary text-primary-foreground'
+												: 'border-input bg-muted/50 hover:bg-muted'}"
+											onclick={() => toggleTag(tag.id)}
+										>
+											{tag.label}{#if count != null}
+												<span class="ml-1 opacity-70">({count})</span>
+											{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+				{#if patternTags.length > 0}
+					<div class="space-y-2">
+						<p class={SECTION_HEADER_CLASS}>Pattern</p>
 						<div class="flex flex-wrap gap-2">
-							{#each dimTags as tag (tag.id)}
+							{#each filteredPatternTags as tag (tag.id)}
 								{@const count = tagCounts[tag.id]}
 								<button
 									type="button"
@@ -558,52 +669,22 @@
 							{/each}
 						</div>
 					</div>
-				{/each}
-			</div>
-		</details>
-		<details
-			bind:this={favouritesRef}
-			bind:open={favouritesFilterOpen}
-			class="group relative"
-		>
-			<summary
-				class="flex cursor-pointer list-none items-center gap-2 rounded-full border border-input bg-background px-4 py-3 text-sm font-medium hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			aria-label="Filter by favourites"
-			>
-				<Heart
-					class="size-4 transition-colors {filter.favouritesOnly ? 'fill-primary text-primary' : 'text-muted-foreground'}"
-				/>
-				<span>Favourites</span>
-				{#if filter.favouritesOnly}
-					<button
-						type="button"
-						class="group/badge flex items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:bg-primary/90 min-w-[1.5rem]"
-						onclick={(e) => {
-							e.stopPropagation();
-							clearFavouritesFilter();
-						}}
-						aria-label="Clear favourites filter"
-					>
-						<span class="group-hover/badge:hidden">On</span>
-						<X class="size-3 hidden group-hover/badge:inline-block" aria-hidden="true" />
-					</button>
-				{:else}
-					<ChevronDown class="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
 				{/if}
-			</summary>
-			<div
-				class="absolute left-0 top-full z-50 mt-2 min-w-[200px] rounded-2xl border border-border bg-background p-3 shadow-lg"
-			>
-				<button
-					type="button"
-					class="w-full rounded-full border px-4 py-3 text-sm font-medium transition-colors {filter.favouritesOnly
-						? 'border-primary bg-primary text-primary-foreground'
-						: 'border-input bg-muted/50 hover:bg-muted'}"
-					onclick={toggleFavouritesFilter}
-				>
-					{filter.favouritesOnly ? 'Showing favourites only' : 'Show favourites only'}
-				</button>
 			</div>
 		</details>
+		<button
+			type="button"
+			class="flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-medium transition-colors {filter.favouritesOnly
+				? 'border-primary bg-primary/10 text-primary'
+				: 'border-input bg-background hover:bg-muted/50'}"
+			onclick={toggleFavouritesFilter}
+			aria-label={filter.favouritesOnly ? 'Remove favourites filter' : 'Show favourites only'}
+			aria-pressed={filter.favouritesOnly}
+		>
+			<Heart
+				class="size-4 transition-colors {filter.favouritesOnly ? 'fill-primary text-primary' : 'text-muted-foreground'}"
+			/>
+			<span>Favourites</span>
+		</button>
 	</div>
 </div>

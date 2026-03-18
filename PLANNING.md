@@ -63,7 +63,7 @@ When adding a new screenshot users will be able to:
         - Communication: About, Acknowledgement & Success, Action Option, Confirmation, Empty State, Error, Feature Info, Feedback, Help & Support, Loading, Permission, Privacy Policy, Pull to Refresh
         Commerce & Finance: Billing, Cart & Bag, Checkout, Order Confirmation, Order Detail, Order History, Payment Method, Pricing, Promotions & Rewards, Shop & Storefront, Subscription & Paywall, Suggestions & Similar Items, Terms & Conditions, Wallet & Balance
         - Social: Achievements & Awards, Chat Detail, Comments, Followers & Following, Groups & Community, Invite Teammates, Leaderboard, Notifications, Reviews & Ratings, Social Feed, User / Group Profile
-        New User Experience: Account Setup, Guided Tour & Tutorial, Splash Screen, Signup, Verification, Welcome & Get Started
+        - New User Experience: Account Setup, Guided Tour & Tutorial, Splash Screen, Signup, Verification, Welcome & Get Started
         - Account Management: Delete & Deactivate Account, Forgot Password, Login, My Account & Profile, Settings & Preferences
     # UI Elements:
         - Control: Accordion, Button, Checkbox, Color Picker, Date Picker, Floating Action Button, Radio Button, Rating Control, Search Bar, Segmented Control, Slider, Stepper, Switch, Tab, Text Field, Tile, Time Picker
