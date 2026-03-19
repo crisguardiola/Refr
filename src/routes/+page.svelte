@@ -79,7 +79,12 @@
 				<img
 					src="/product-screenshot.png"
 					alt="Refr app showing your reference library with organised screenshots"
-					class="w-full rounded-xl border border-border shadow-2xl"
+					class="w-full rounded-xl border border-border shadow-2xl block dark:hidden"
+				/>
+				<img
+					src="/product-screenshot-dark.png"
+					alt="Refr app showing your reference library with organised screenshots"
+					class="w-full rounded-xl border border-border shadow-2xl hidden dark:block"
 				/>
 			</div>
 		</div>

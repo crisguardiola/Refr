@@ -22,7 +22,7 @@
 	}
 
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Search } from '@lucide/svelte';
+	import { Search, X } from '@lucide/svelte';
 	import { getSectionForLabel } from '$lib/tags.js';
 
 	type Folder = { id: number; name: string; count?: number };
@@ -196,10 +196,28 @@
 >
 	<Dialog.Content class="w-[min(32rem,calc(100vw-2rem))] max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
 		<Dialog.Header class="px-6 pt-8 pb-4">
-			<Dialog.Title class="text-2xl font-semibold tracking-tight">Add screenshot</Dialog.Title>
-			<Dialog.Description class="mt-1.5 text-sm text-muted-foreground">
-				Add an optional note and assign to a folder.
-			</Dialog.Description>
+			{#if previewUrl}
+				<div class="mb-4 flex items-center gap-4">
+					<div class="size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+						<img
+							src={previewUrl}
+							alt=""
+							class="size-full object-cover"
+						/>
+					</div>
+					<div class="min-w-0 flex-1">
+						<Dialog.Title class="text-2xl font-semibold tracking-tight">Add screenshot</Dialog.Title>
+						<Dialog.Description class="mt-1.5 text-sm text-muted-foreground">
+							Add an optional note and assign to a folder.
+						</Dialog.Description>
+					</div>
+				</div>
+			{:else}
+				<Dialog.Title class="text-2xl font-semibold tracking-tight">Add screenshot</Dialog.Title>
+				<Dialog.Description class="mt-1.5 text-sm text-muted-foreground">
+					Add an optional note and assign to a folder.
+				</Dialog.Description>
+			{/if}
 		</Dialog.Header>
 		{#if previewUrl}
 			<div class="flex flex-1 flex-col gap-6 overflow-auto px-6 pb-6">
@@ -279,9 +297,19 @@
 						<Input
 							bind:value={uiElementsSearch}
 							placeholder="Search screens, controls, views..."
-							class="h-8 pl-8 text-sm"
+							class="h-8 pl-8 pr-9 text-sm"
 							aria-label="Search tags"
 						/>
+						{#if uiElementsSearch}
+							<button
+								type="button"
+								onclick={() => (uiElementsSearch = '')}
+								class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								aria-label="Clear search"
+							>
+								<X class="size-3.5" />
+							</button>
+						{/if}
 					</div>
 					<div class="max-h-48 overflow-y-auto space-y-4 pr-1">
 						{#if uiElementsBySection.length > 0}
