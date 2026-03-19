@@ -32,13 +32,15 @@ function getCloudinaryConfig(): { cloud_name: string; api_key: string; api_secre
 }
 
 export const load: PageServerLoad = async (event) => {
-	const session = await auth.api.getSession({ headers: event.request.headers });
-	if (!session?.user) {
+	const user = event.locals.user;
+	if (!user) {
 		redirect(302, '/demo/better-auth/login');
 	}
 
 	const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase();
-	if (adminEmail && session.user.email?.toLowerCase() !== adminEmail) {
+	const userEmail = user.email?.trim().toLowerCase();
+	const isAdmin = !!adminEmail && !!userEmail && userEmail === adminEmail;
+	if (adminEmail && !isAdmin) {
 		redirect(302, '/app');
 	}
 
@@ -58,7 +60,7 @@ export const load: PageServerLoad = async (event) => {
 		: await db
 				.select()
 				.from(bug)
-				.where(eq(bug.userId, session.user.id))
+				.where(eq(bug.userId, user.id))
 				.orderBy(desc(bug.createdAt));
 
 	return { bugs, isAdmin: !!adminEmail };

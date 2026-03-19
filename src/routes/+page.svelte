@@ -74,6 +74,14 @@
 				<Button size="lg" href="/demo/better-auth/login">Log in</Button>
 				<Button variant="outline" size="lg" href="/demo/better-auth/login?signup=true">Create account</Button>
 			</div>
+
+			<div class="mt-12 w-full max-w-4xl">
+				<img
+					src="/product-screenshot.png"
+					alt="Refr app showing your reference library with organised screenshots"
+					class="w-full rounded-xl border border-border shadow-2xl"
+				/>
+			</div>
 		</div>
 	</section>
 

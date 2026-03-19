@@ -64,8 +64,14 @@ export const load: LayoutServerLoad = async (event) => {
 	) as Record<number, number>;
 
 	const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase();
-	const canViewBugs =
-		!adminEmail || (event.locals.user?.email?.toLowerCase() === adminEmail);
+	const userEmail = event.locals.user?.email?.trim().toLowerCase();
+	const isAdmin = !!adminEmail && !!userEmail && userEmail === adminEmail;
+	const canViewBugs = !adminEmail || isAdmin;
+
+	// Redirect non-admins away from /app/bugs when ADMIN_EMAIL is set
+	if (adminEmail && event.url.pathname === '/app/bugs' && !isAdmin) {
+		redirect(302, '/app');
+	}
 
 	return {
 		user: event.locals.user,
