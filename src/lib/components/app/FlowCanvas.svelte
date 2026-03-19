@@ -130,7 +130,9 @@
 	let draggingId = $state<number | null>(null);
 	let dragOffset = $state({ x: 0, y: 0 });
 	let isPanning = $state(false);
-	let panStart = $state<{ scrollLeft: number; scrollTop: number; clientX: number; clientY: number } | null>(null);
+	let panX = $state(0);
+	let panY = $state(0);
+	let panStart = $state<{ panX: number; panY: number; clientX: number; clientY: number } | null>(null);
 	let canvasRef: HTMLDivElement;
 	let canvasScrollRef: HTMLDivElement;
 	let zoomLevel = $state(1);
@@ -382,12 +384,12 @@
 		const node = getNodeById(nodeId);
 		if (!node) return;
 		if (mode === 'markup') return; // drawing handled by overlay
-		if (mode === 'move' && canvasScrollRef) {
-			// Hand: pan even when clicking on a screen
+		if (mode === 'move') {
+			// Hand: pan even when clicking on a screen (transform-based, not scroll)
 			isPanning = true;
 			panStart = {
-				scrollLeft: canvasScrollRef.scrollLeft,
-				scrollTop: canvasScrollRef.scrollTop,
+				panX,
+				panY,
 				clientX: e.clientX,
 				clientY: e.clientY
 			};
@@ -436,12 +438,12 @@
 		if (target.closest('img')) return; // hit a screen, let it handle
 		const pt = clientToCanvas(e.clientX, e.clientY);
 		if (!pt) return;
-		if (mode === 'move' && canvasScrollRef) {
-			// Hand: pan the canvas
+		if (mode === 'move') {
+			// Hand: pan the canvas (transform-based, not scroll)
 			isPanning = true;
 			panStart = {
-				scrollLeft: canvasScrollRef.scrollLeft,
-				scrollTop: canvasScrollRef.scrollTop,
+				panX,
+				panY,
 				clientX: e.clientX,
 				clientY: e.clientY
 			};
@@ -490,11 +492,11 @@
 	function handlePointerMove(e: PointerEvent) {
 		const pt = clientToCanvas(e.clientX, e.clientY);
 		if (pt) drawCurrent = pt;
-		if (isPanning && panStart && canvasScrollRef) {
+		if (isPanning && panStart) {
 			const dx = e.clientX - panStart.clientX;
 			const dy = e.clientY - panStart.clientY;
-			canvasScrollRef.scrollLeft = panStart.scrollLeft - dx;
-			canvasScrollRef.scrollTop = panStart.scrollTop - dy;
+			panX = panStart.panX + dx;
+			panY = panStart.panY + dy;
 			return;
 		}
 		if (editingArrow && editStart && pt) {
@@ -710,7 +712,7 @@
 	<!-- Canvas area -->
 	<div
 		bind:this={canvasScrollRef}
-		class="relative min-h-0 flex-1 overflow-auto bg-background flow-canvas-dots"
+		class="relative min-h-0 flex-1 overflow-hidden bg-background flow-canvas-dots"
 		role="region"
 		aria-label="Flow canvas"
 		use:canvasWheelAction
@@ -726,7 +728,7 @@
 						: mode === 'markup'
 							? 'cursor-crosshair'
 							: ''}"
-			style="transform: scale({zoomLevel}); transform-origin: {zoomOrigin.x}px {zoomOrigin.y}px;"
+			style="transform: translate({panX}px, {panY}px) scale({zoomLevel}); transform-origin: {zoomOrigin.x}px {zoomOrigin.y}px;"
 			role="presentation"
 			onpointerdown={handleCanvasPointerDown}
 		>
@@ -887,9 +889,11 @@
 						src={cloudinaryUrl(shot.url, 'detail')}
 						alt={shot.fileName}
 						draggable="false"
-						class="absolute block max-w-[400px] max-h-[400px] w-auto h-auto object-contain transition-shadow {mode === 'select'
-							? (draggingId === node.id ? 'cursor-grabbing' : 'cursor-default')
-							: 'cursor-crosshair'}
+						class="absolute block max-w-[400px] max-h-[400px] w-auto h-auto object-contain transition-shadow {mode === 'move'
+							? (isPanning ? 'cursor-grabbing' : 'cursor-grab')
+							: mode === 'select'
+								? (draggingId === node.id ? 'cursor-grabbing' : 'cursor-default')
+								: 'cursor-crosshair'}
 						hover:shadow-lg {(selectedScreenId === node.id ||
 							(drawingArrow?.type === 'screen' && drawingArrow.fromScreen === node.id) ||
 							arrows.some((a) => a.from === node.id))
